@@ -1,8 +1,9 @@
 import torch
+import torch.nn as nn
 import gpytorch
 
 
-class DisaggregateRidgeRegression:
+class AggregateRidgeRegression(nn.Module):
     """Ridge Regression model when aggregate targets only are observed
 
     Args:
@@ -10,26 +11,28 @@ class DisaggregateRidgeRegression:
     """
 
     def __init__(self, alpha):
+        super().__init__()
         self.alpha = alpha
 
-    def fit(self, covariates, aggregate_targets):
+    def fit(self, individuals_covariates, aggregate_targets):
         """Fits model following sklearn syntax
 
         Args:
-            covariates (torch.Tensor): (n_bags, n_sample_per_bag, covariate_dimenionality)
+            individuals_covariates (torch.Tensor): (n_bags, bags_size, n_dim_individuals)
                 samples must be organized by bags following which aggregation is taken
             aggregate_targets (torch.Tensor): (n_bags,) of aggregate targets observed for each bag
 
         """
-        n = covariates.size(0)
-        d = covariates.size(-1)
+        n_bags = individuals_covariates.size(0)
+        d = individuals_covariates.size(-1)
 
-        EXy = covariates.mean(dim=1).t()
-        Q = EXy @ EXy.t() + n * self.alpha * torch.eye(d)
+        EXy = individuals_covariates.mean(dim=1).t()
+        Q = EXy @ EXy.t() + n_bags * self.alpha * torch.eye(d)
 
-        self.beta = gpytorch.inv_matmul(Q, EXy @ aggregate_targets)
+        beta = gpytorch.inv_matmul(Q, EXy @ aggregate_targets)
+        self.register_buffer('beta', beta)
 
-    def predict(self, x):
+    def forward(self, x):
         """Runs prediction
 
         Args:

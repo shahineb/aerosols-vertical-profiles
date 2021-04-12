@@ -1,6 +1,5 @@
-from .exact_cme_process import ExactCMEProcess
-from .variational_cme_process import VariationalCMEProcess, GridVariationalCMEProcess
-from .ridge_regression import DisaggregateRidgeRegression
+from .ridge_regression import AggregateRidgeRegression
+from .kernel_ridge_regression import AggregateKRR, ConditionalAggregateKRR
 
-__all__ = ['ExactCMEProcess', 'VariationalCMEProcess', 'GridVariationalCMEProcess',
-           'DisaggregateRidgeRegression']
+__all__ = ['AggregateKRR', 'ConditionalAggregateKRR',
+           'AggregateRidgeRegression']
