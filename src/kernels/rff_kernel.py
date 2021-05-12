@@ -32,7 +32,7 @@ class StandardMultivariateTStudent(Distribution):
 class RFFKernel(kernels.RFFKernel):
     """Computes covariance matrix based on Random Fourier Features approximation
 
-        Works for Matern class of kernel
+    This is an extension of the original GPytorch implementation to Matern kernels
 
     Args:
         num_samples (int): number of random frequencies to draw
