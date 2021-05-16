@@ -6,6 +6,8 @@ import gpytorch
 class AggregateRidgeRegression(nn.Module):
     """Ridge Regression model when aggregate targets only are observed
 
+        *** Current implementation assumes all bags have same size ***
+
     Args:
         alpha (float): regularization weight, greater = stronger L2 penalization
     """

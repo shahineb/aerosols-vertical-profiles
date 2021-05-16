@@ -23,18 +23,20 @@ class AggregateKRR(nn.Module):
 
         Args:
             individuals_covariates (torch.Tensor): (n_bags, bags_size, n_dim_individuals)
-            aggregate_targets (torch.Tensor): (n_bags)
+            aggregate_targets (torch.Tensor): (n_bags,)
 
         """
         # Extract tensors dimensions
         n_bags = individuals_covariates.size(0)
+        bags_size = individuals_covariates.size(1)
+        n_dim = individuals_covariates.size(-1)
 
         # Register flattened individuals covariates tensor as buffer for prediction
         self.register_buffer('covariates', individuals_covariates)
 
-        # Compute aggregated kernel matrix ATKA
-        bagged_K = self.individuals_kernel(individuals_covariates.permute(1, 0, 2)).evaluate()
-        agg_K = lazy.lazify(bagged_K.mean(dim=0))
+        # Compute aggregated kernel matrix ATKA - takes sooo long because of .evaluate()
+        K = self.individuals_kernel(individuals_covariates.view(-1, n_dim)).evaluate()
+        agg_K = lazy.lazify(K.reshape(n_bags, bags_size, n_bags, bags_size).mean(dim=(1, 3)))
 
         # Compute inverse term ATKA + αnI
         inverse_term = agg_K.add_diag(n_bags * self.alpha * torch.ones_like(aggregate_targets))
@@ -54,8 +56,8 @@ class AggregateKRR(nn.Module):
             type: torch.Tensor
 
         """
-        K = self.individuals_kernel(self.covariates, x).evaluate()
-        K = K.mean(dim=1).t()
+        K = self.individuals_kernel(self.covariates, x)
+        K = K.sum(dim=1).mul(1 / self.covariates.size(1)).t()
         return K @ self.beta
 
 
@@ -125,8 +127,85 @@ class ConditionalAggregateKRR(nn.Module):
                 samples must not need to be organized by bags
 
         Returns:
-            type: torch.Tensor
+            type: torch.Tensor (n_samples,)
 
         """
         K = self.individuals_kernel(x, self.covariates)
         return K @ self.beta
+
+
+class TransformedConditionalAggregateKRR(nn.Module):
+    """Transformed Aggregate Kernel Ridge Regression with Kernel Conditional Mean Embeddings
+
+        Same as above except that output undergoes possibly non-linear transformation
+        and closed form solution may not be available - i.e. no fit method
+
+    Args:
+        individuals_kernel (gpytorch.kernels.Kernel): kernel for individuals covariates
+        bags_kernel (gpytorch.kernels.Kernel): kernel for bags covariates
+        transform (callable): output transformation to apply to prediction
+        individuals_covariates (torch.Tensor): (N, d) tensor of interpolation covariates
+        lbda (float): regularization weight for conditional mean operator estimation
+        alpha (float): ridge regularization weight
+    """
+    def __init__(self, individuals_kernel, bags_kernel, transform, individuals_covariates, lbda, alpha):
+        super().__init__()
+        self.individuals_kernel = individuals_kernel
+        self.bags_kernel = bags_kernel
+        self.transform = transform
+        self.lbda = lbda
+        self.alpha = alpha
+        self.beta = nn.Parameter(torch.rand(individuals_covariates.size(0)))
+        self.register_buffer('individuals_covariates', individuals_covariates)
+        with torch.no_grad():
+            self.register_buffer('K', self.individuals_kernel(individuals_covariates).evaluate())
+
+    def forward(self, x):
+        """Runs prediction
+
+        Args:
+            x (torch.Tensor): (n_samples, n_dim_individuals)
+                samples must not need to be organized by bags
+
+        Returns:
+            type: torch.Tensor (n_samples,)
+
+        """
+        K = self.individuals_kernel(x, self.individuals_covariates)
+        prediction = self.transform(K @ self.beta)
+        return prediction
+
+    def aggregate_prediction(self, prediction, bags_covariates, extended_bags_covariates):
+        """Computes aggregation of individuals output prediction as
+
+            aggregate_prediction = l(bags, extended_bags) * (L + λNI)^{-1} * pred
+
+        Args:
+            prediction (torch.Tensor): (N,) tensor output of forward
+            bags_covariates (torch.Tensor): (n,) tensor of bags covariates corresponding to individuals
+                used for prediction
+            extended_bags_covariates (torch.Tensor): (N,) tensor of above bags covariates replicated
+                to match individuals tensor size
+
+        Returns:
+            type: torch.Tensor, float
+
+        """
+        # Compute extended bags gram matrix L
+        L = self.bags_kernel(extended_bags_covariates)
+
+        # Compute transition bags gram matrix l(bags, extended_bags)
+        L_bags_to_extended_bags = self.bags_kernel(bags_covariates, extended_bags_covariates)
+
+        # Derive low rank unwhitened aggregation matrix A = l(bags, extended_bags) * (L + λNI)^{-1/2}
+        N = extended_bags_covariates.size(0)
+        root_inv_L = L.add_diag(self.lbda * N * torch.ones(N, device=prediction.device)).root_inv_decomposition().root
+        A = L_bags_to_extended_bags @ root_inv_L
+
+        # Aggregate prediction
+        aggregate_prediction = A @ root_inv_L.t() @ prediction
+        return aggregate_prediction
+
+    def regularization_term(self):
+        regularization_term = self.alpha * torch.dot(self.beta, self.K @ self.beta)
+        return regularization_term
