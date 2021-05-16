@@ -188,7 +188,7 @@ class TransformedConditionalAggregateKRR(nn.Module):
                 to match individuals tensor size
 
         Returns:
-            type: torch.Tensor, float
+            type: torch.Tensor
 
         """
         # Compute extended bags gram matrix L

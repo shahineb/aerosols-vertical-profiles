@@ -23,9 +23,8 @@ class CMPLikelihood(GaussianLikelihood):
         """
         # Extract variational posterior parameters
         variational_mean = variational_dist.mean
-        # variational_covar_cholesky = variational_dist.lazy_covariance_matrix.cholesky()
-        # variational_covar = variational_dist.lazy_covariance_matrix
-        variational_covar_root = lazy.DiagLazyTensor(diag=variational_dist.std)
+        # variational_covar_root = variational_dist.lazy_covariance_matrix.root_decomposition().root
+        variational_covar_root = lazy.DiagLazyTensor(diag=variational_dist.stddev)
 
         # Compute low rank A^T aggregation term, agg_term = l(bags_covariates_2, bags_covariates_1)(L + λNI)^{-1/2}
         agg_term = bags_covar_12.t() @ root_inv_bags_covar_11

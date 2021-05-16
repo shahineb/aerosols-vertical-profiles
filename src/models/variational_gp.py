@@ -18,17 +18,7 @@ class VariationalCMP(ApproximateGP):
         transform (callable): output transformation to apply to prediction
         lbda (float): CMO inversion regularization parameter
 
-    Attributes:
-        _set_variational_strategy (type): Description of parameter `_set_variational_strategy`.
-        noise_kernel (type): Description of parameter `noise_kernel`.
-        individuals_mean
-        individuals_kernel
-        bag_kernel
-        lbda
-        transform
-
     """
-
     def __init__(self, inducing_points, individuals_mean, individuals_kernel, bag_kernel, transform, lbda):
         # Initialize variational strategy
         variational_strategy = self._set_variational_strategy(inducing_points)
