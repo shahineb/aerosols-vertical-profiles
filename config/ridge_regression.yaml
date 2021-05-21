@@ -1,0 +1,48 @@
+################################################################################
+#   CONFIGURATIONS FOR VERTICAL DISAGGREGATION EXPERIMENT WITH AGGREGATE RIDGE REGRESSION
+################################################################################
+
+
+# MODEL SPECIFICATIONS
+model:
+  # Name of model to use
+  name: 'bagged_gp'
+
+  # Whether bags are considered independent or not like in Law et al. 2018
+  independent_bags: True
+
+
+# DATASET
+dataset:
+  # Number of points samples in swiss roll
+  n_samples: 5000
+
+  # Number of bags
+  n_bags: 50
+
+  # Variance of noise to apply on aggregate targets
+  noise: 0.05
+
+  # Random seed for dataset generation
+  seed: 42
+
+
+# TRAINING
+training:
+  # Name of model to use
+  name: 'bagged_gp'
+
+  # Learning rate
+  lr: 0.1
+
+  # Number of iterations
+  n_epochs: 100
+
+
+# EVALUATION
+evaluation:
+  # Number of samples to use for NLL computation - doesn't scale
+  chunk_size_nll: 2000
+
+  # Random seed for samples selection
+  seed: 42
