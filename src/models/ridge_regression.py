@@ -88,21 +88,8 @@ class TransformedAggregateRidgeRegression(nn.Module):
         self.fit_intercept = fit_intercept
         self.ndim = ndim
         if self.fit_intercept:
-            self.ndim += 1
+            self.bias = nn.Parameter(torch.rand(1))
         self.beta = nn.Parameter(torch.rand(self.ndim))
-
-    def pad_input(self, x):
-        """Pads x with 1 along last dimension
-
-        Args:
-            x (torch.Tensor)
-
-        Returns:
-            type: torch.Tensor
-
-        """
-        x = torch.cat([x, torch.ones(x.shape[:-1], device=x.device).unsqueeze(-1)], dim=-1)
-        return x
 
     def forward(self, x):
         """Runs prediction
@@ -115,9 +102,10 @@ class TransformedAggregateRidgeRegression(nn.Module):
             type: torch.Tensor
 
         """
+        output = x @ self.beta
         if self.fit_intercept:
-            x = self.pad_input(x)
-        return self.transform(x @ self.beta)
+            output = output + self.bias
+        return self.transform(output)
 
     def aggregate_prediction(self, prediction):
         """Computes aggregation of individuals output prediction
