@@ -2,7 +2,7 @@ import torch
 
 
 def compute_metrics(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn):
-    """Short summary.
+    """Computes prediction scores
 
     Args:
         prediction_3d (torch.Tensor): (time, lat, lon, lev)
