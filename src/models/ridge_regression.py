@@ -10,12 +10,14 @@ class AggregateRidgeRegression(nn.Module):
 
     Args:
         alpha (float): regularization weight, greater = stronger L2 penalization
+        aggregate_fn (callable): aggregation operator
         fit_intercept (bool): if True, pads inputs with constant offset
     """
 
-    def __init__(self, alpha, fit_intercept=False):
+    def __init__(self, alpha, aggregate_fn, fit_intercept=False):
         super().__init__()
         self.alpha = alpha
+        self.aggregate_fn = aggregate_fn
         self.fit_intercept = fit_intercept
 
     def pad_input(self, x):
@@ -45,7 +47,7 @@ class AggregateRidgeRegression(nn.Module):
         n_bags = individuals_covariates.size(0)
         d = individuals_covariates.size(-1)
 
-        EXy = individuals_covariates.sum(dim=1).t()
+        EXy = self.aggregate_fn(individuals_covariates).t()
         Q = EXy @ EXy.t() + n_bags * self.alpha * torch.eye(d)
 
         beta = gpytorch.inv_matmul(Q, EXy @ aggregate_targets)
@@ -71,16 +73,18 @@ class TransformedAggregateRidgeRegression(nn.Module):
     """Short summary.
 
     Args:
-        transform (callable): output transformation to apply to prediction
         alpha (float): regularization weight, greater = stronger L2 penalization
+        transform (callable): output transformation to apply to prediction
+        aggregate_fn (callable): aggregation operator
         ndim (int): dimensionality of inputs
         fit_intercept (bool): if True, pads inputs with constant offset
 
     """
-    def __init__(self, transform, alpha, ndim, fit_intercept=False):
+    def __init__(self, alpha, transform, aggregate_fn, ndim, fit_intercept=False):
         super().__init__()
-        self.transform = transform
         self.alpha = alpha
+        self.transform = transform
+        self.aggregate_fn = aggregate_fn
         self.fit_intercept = fit_intercept
         self.ndim = ndim
         if self.fit_intercept:
@@ -125,7 +129,7 @@ class TransformedAggregateRidgeRegression(nn.Module):
             type: torch.Tensor
 
         """
-        aggregate_prediction = prediction.sum(dim=1)
+        aggregate_prediction = self.aggregate_fn(prediction)
         return aggregate_prediction
 
     def regularization_term(self):
