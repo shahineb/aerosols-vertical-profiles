@@ -11,13 +11,47 @@ Options:
 import os
 import yaml
 import logging
-import docopt
-import numpy as np
-import xarray as xr
+from docopt import docopt
+import torch
 import matplotlib.pyplot as plt
 import src.preprocessing as preproc
 from src.models import AggregateRidgeRegression
 from src.evaluation import metrics, visualization
+
+
+def main(args, cfg):
+    # Create dataset
+    logging.info("Loading dataset")
+    dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt = make_datasets(cfg=cfg)
+
+    # Instantiate model
+    model = make_model(cfg=cfg, dataset=standard_dataset)
+    logging.info(f"{model}")
+
+    # Fit model
+    model.fit(x_by_bag, z)
+    logging.info("Fitted model")
+
+    # Run prediction
+    with torch.no_grad():
+        prediction = model(x)
+        prediction_3d = prediction.reshape(*gt_grid.shape)
+
+    # Dump scores in output dir
+    dump_scores(prediction_3d=prediction_3d,
+                groundtruth_3d=gt_grid,
+                targets_2d=z_grid,
+                aggregate_fn=model.aggregate_fn,
+                output_dir=args['--o'])
+
+    # Dump plots in output dir
+    if args['--plot']:
+        dump_plots(cfg=cfg,
+                   dataset=standard_dataset,
+                   prediction_3d=prediction_3d,
+                   aggregate_fn=model.aggregate_fn,
+                   output_dir=args['--o'])
+        logging.info("Dumped plots")
 
 
 def make_datasets(cfg):
@@ -49,6 +83,57 @@ def make_datasets(cfg):
     return dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt
 
 
+def make_model(cfg, dataset):
+    # Make aggregation operator
+    h = torch.from_numpy(preproc.standardize(dataset.h.values))
+
+    def trpz(grid):
+        int_grid = -torch.trapz(y=grid, x=h, dim=-2)
+        return int_grid
+
+    # Instantiate model
+    model = AggregateRidgeRegression(alpha=cfg['model']['alpha'],
+                                     aggregate_fn=trpz,
+                                     fit_intercept=cfg['model']['fit_intercept'])
+    return model
+
+
+def dump_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn, output_dir):
+    scores = metrics.compute_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn)
+    dump_path = os.path.join(output_dir, 'scores.metrics')
+    with open(dump_path, 'w') as f:
+        yaml.dump(scores, f)
+    logging.info(f"Dumped scores at {dump_path}")
+
+
+def dump_plots(cfg, dataset, prediction_3d, aggregate_fn, output_dir):
+    # First plot - aggregate 2D prediction
+    dump_path = os.path.join(output_dir, 'aggregate_2d_prediction.png')
+    _ = visualization.plot_aggregate_2d_predictions(dataset=dataset,
+                                                    target_key=cfg['dataset']['target'],
+                                                    prediction_3d=prediction_3d,
+                                                    aggregate_fn=aggregate_fn)
+    plt.savefig(dump_path)
+    plt.close()
+
+    # Second plot - slices of covariates
+    dump_path = os.path.join(output_dir, 'covariates_slices.png')
+    _ = visualization.plot_vertical_covariates_slices(dataset=dataset,
+                                                      lat_idx=cfg['evaluation']['slice_latitude_idx'],
+                                                      time_idx=cfg['evaluation']['slice_time_idx'],
+                                                      covariates_keys=cfg['evaluation']['slices_covariates'])
+    plt.savefig(dump_path)
+    plt.close()
+
+    # Third plot - prediction slice
+    dump_path = os.path.join(output_dir, '3d_prediction_slice.png')
+    _ = visualization.plot_vertical_prediction_slice(dataset=dataset,
+                                                     lat_idx=cfg['evaluation']['slice_latitude_idx'],
+                                                     time_idx=cfg['evaluation']['slice_time_idx'],
+                                                     groundtruth_key=cfg['dataset']['groundtruth'],
+                                                     prediction_3d=prediction_3d)
+    plt.savefig(dump_path)
+    plt.close()
 
 
 if __name__ == "__main__":

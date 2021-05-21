@@ -12,7 +12,7 @@ def make_grid_tensor(field, coords_keys, standardize=True):
     for key in coords_keys:
         coord = torch.from_numpy(field[key].values.astype('float'))
         if standardize:
-            coord = standardize(coord)
+            coord = (coord - coord.mean()) / coord.std()
         coords.append(coord)
     grid = torch.stack(torch.meshgrid(*coords), dim=-1).float()
     return grid
@@ -80,4 +80,5 @@ def make_3d_groundtruth_tensor(dataset, groundtruth_variable_key):
 
     """
     grid = torch.from_numpy(dataset[groundtruth_variable_key].values).float()
+    grid = grid.permute(0, 2, 3, 1)
     return grid

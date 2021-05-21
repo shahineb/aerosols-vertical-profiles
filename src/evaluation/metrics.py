@@ -1,7 +1,7 @@
 import torch
 
 
-def compute_metrics(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn):
+def compute_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn):
     """Computes prediction scores
 
     Args:
@@ -14,7 +14,7 @@ def compute_metrics(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn):
         type: Description of returned object.
 
     """
-    scores_2d = compute_2d_aggregate_metrics(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn)
+    scores_2d = compute_2d_aggregate_metrics(prediction_3d, targets_2d, aggregate_fn)
     scores_3d = compute_3d_metrics(prediction_3d, groundtruth_3d)
     output = {'2d': scores_2d, '3d': scores_3d}
     return output
