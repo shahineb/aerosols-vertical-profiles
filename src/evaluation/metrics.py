@@ -1,6 +1,47 @@
 import torch
 
 
+def compute_2d_aggregate_metrics(prediction_3d, targets_2d, aggregate_fn):
+    """Computes prediction scores between aggregation of 3D+t prediction and
+    2D+t aggregate targets used for training
+
+    Args:
+        prediction_3d (torch.Tensor): (time, lat, lon, lev)
+        targets_2d (torch.Tensor): (time, lat, lon)
+        aggregate_fn (callable): callable used to aggregate (time, lat, lon, lev, -1) -> (time, lat, lon)
+
+    Returns:
+        type: dict[float]
+
+    """
+    aggregate_prediction_2d = aggregate_fn(prediction_3d.unsqueeze(-1)).squeeze()
+    difference = aggregate_prediction_2d.sub(targets_2d)
+    rmse = torch.square(difference).mean().sqrt()
+    mae = torch.abs(difference).mean()
+    corr = spearman_correlation(aggregate_prediction_2d.flatten(), targets_2d.flatten())
+    output = {'rmse': rmse.item(), 'mae': mae.item(), 'corr': corr.item()}
+    return output
+
+
+def compute_3d_metrics(prediction_3d, groundtruth_3d):
+    """Computes prediction scores between 3D+t prediction and 3D+t unobserved groundtruth
+
+    Args:
+        prediction_3d (torch.Tensor): (time, lat, lon, lev)
+        groundtruth_3d (torch.Tensor): (time, lat, lon, lev)
+
+    Returns:
+        type: dict[float]
+
+    """
+    difference = prediction_3d.sub(groundtruth_3d)
+    rmse = torch.square(difference).mean().sqrt()
+    mae = torch.abs(difference).mean()
+    corr = spearman_correlation(prediction_3d.flatten(), groundtruth_3d.flatten())
+    output = {'rmse': rmse.item(), 'mae': mae.item(), 'corr': corr.item()}
+    return output
+
+
 def spearman_correlation(x, y):
     """Computes Spearman Correlation between x and y
 
