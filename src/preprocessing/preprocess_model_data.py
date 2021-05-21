@@ -6,7 +6,9 @@ standardize = lambda x: (x - x.mean()) / x.std()
 
 def load_dataset(file_path, air_density_file_path, trimming_altitude_idx):
     # Load dataset
-    dataset = xr.open_dataset(file_path)
+    dataset = xr.open_dataset(file_path).isel(lat=slice(0, 100),
+                                              lon=slice(100, 200),
+                                              time=slice(0, 3))
 
     # Include air density dataset
     air_density = xr.open_dataset(air_density_file_path)
