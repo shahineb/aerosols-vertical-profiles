@@ -15,17 +15,9 @@ dataset:
 
   # Variable for which a logdomain version is created names log_<variable_name> - does not override original variable
   to_log_domain:
-    - totexttau
-    - totscatau
-    - cocl
-    - suexttau
-    - so4smass
-    - suscatau
     - rh
     - co
     - so4
-    - so4cmass
-    - so4_mass_conc
 
   # Variables to use as 3D covariates
   3d_covariates:

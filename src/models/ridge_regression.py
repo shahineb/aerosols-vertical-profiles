@@ -88,8 +88,8 @@ class TransformedAggregateRidgeRegression(nn.Module):
         self.fit_intercept = fit_intercept
         self.ndim = ndim
         if self.fit_intercept:
-            self.bias = nn.Parameter(torch.rand(1))
-        self.beta = nn.Parameter(torch.rand(self.ndim))
+            self.bias = nn.Parameter(torch.zeros(1))
+        self.beta = nn.Parameter(0.000000001 * torch.randn(self.ndim))
 
     def forward(self, x):
         """Runs prediction

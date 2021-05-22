@@ -15,17 +15,9 @@ dataset:
 
   # Variable for which a logdomain version is created names log_<variable_name> - does not override original variable
   to_log_domain:
-    - totexttau
-    - totscatau
-    - cocl
-    - suexttau
-    - so4smass
-    - suscatau
     - rh
     - co
     - so4
-    - so4cmass
-    - so4_mass_conc
 
   # Variables to use as 3D covariates
   3d_covariates:
@@ -51,7 +43,7 @@ model:
   alpha: 0.001
 
   # Whether to use bias or not
-  fit_intercept: True
+  fit_intercept: False
 
   # Warping transformation
   transform: 'smooth_abs'
@@ -65,7 +57,7 @@ training:
   n_epochs: 1000
 
   # Learning rate
-  lr: 0.1
+  lr: 0.000001
 
 
 

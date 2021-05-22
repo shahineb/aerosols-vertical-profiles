@@ -26,7 +26,7 @@ def main(args, cfg):
     dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt = make_datasets(cfg=cfg)
 
     # Instantiate model
-    model = make_model(cfg=cfg, dataset=standard_dataset)
+    model = make_model(cfg=cfg, dataset=dataset)
     logging.info(f"{model}")
 
     # Fit model
@@ -48,7 +48,8 @@ def main(args, cfg):
     # Dump plots in output dir
     if args['--plot']:
         dump_plots(cfg=cfg,
-                   dataset=standard_dataset,
+                   dataset=dataset,
+                   standard_dataset=standard_dataset,
                    prediction_3d=prediction_3d,
                    aggregate_fn=model.aggregate_fn,
                    output_dir=args['--o'])
@@ -73,7 +74,7 @@ def make_datasets(cfg):
     # Convert into pytorch tensors
     x_grid = preproc.make_3d_covariates_tensors(dataset=standard_dataset, variables_keys=cfg['dataset']['3d_covariates'])
     z_grid = preproc.make_2d_target_tensor(dataset=standard_dataset, target_variable_key=cfg['dataset']['target'])
-    gt_grid = preproc.make_3d_groundtruth_tensor(dataset=standard_dataset, groundtruth_variable_key=cfg['dataset']['groundtruth'])
+    gt_grid = preproc.make_3d_groundtruth_tensor(dataset=dataset, groundtruth_variable_key=cfg['dataset']['groundtruth'])
 
     # Reshape tensors
     x_by_bag = x_grid.reshape(-1, x_grid.size(-2), x_grid.size(-1))
@@ -86,30 +87,29 @@ def make_datasets(cfg):
 
 def make_model(cfg, dataset):
     # Make aggregation operator
-    h = torch.from_numpy(preproc.standardize(dataset.h.values))
+    h = torch.from_numpy(dataset.h.values)
+
+    target_variable_key = cfg['dataset']['target']
+    target_mean, target_std = torch.tensor(dataset[target_variable_key].mean().values), torch.tensor(dataset[target_variable_key].std().values)
 
     def trpz(grid):
         int_grid = -torch.trapz(y=grid, x=h, dim=-2)
+        int_grid = (int_grid - target_mean) / target_std
         return int_grid
 
     # Define warping transformation
     if cfg['model']['transform'] == 'linear':
-        base_transform = lambda x: x
+        transform = lambda x: x
     elif cfg['model']['transform'] == 'softplus':
-        base_transform = lambda x: torch.log(1 + torch.exp(x))
+        transform = lambda x: torch.log(1 + torch.exp(x))
     elif cfg['model']['transform'] == 'smooth_abs':
-        base_transform = lambda x: torch.nn.functional.smooth_l1_loss(x, torch.zeros_like(x), reduction='none')
+        transform = lambda x: torch.nn.functional.smooth_l1_loss(x, torch.zeros_like(x), reduction='none')
     elif cfg['model']['transform'] == 'square':
-        base_transform = torch.square
+        transform = torch.square
     elif cfg['model']['transform'] == 'exp':
-        base_transform = torch.exp
+        transform = torch.exp
     else:
         raise ValueError("Unknown transform")
-
-    # Affine warp of transform by standardization coefficients
-    target_variable_key = cfg['dataset']['target']
-    mu, sigma = dataset[target_variable_key].mean().values, dataset[target_variable_key].std().values
-    transform = lambda x: (base_transform(x) - torch.tensor(mu)) / torch.tensor(sigma)
 
     # Instantiate model
     model = TransformedAggregateRidgeRegression(alpha=cfg['model']['alpha'],
@@ -160,10 +160,10 @@ def dump_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn, output_
     logging.info(f"Dumped scores at {dump_path}")
 
 
-def dump_plots(cfg, dataset, prediction_3d, aggregate_fn, output_dir):
+def dump_plots(cfg, dataset, standard_dataset, prediction_3d, aggregate_fn, output_dir):
     # First plot - aggregate 2D prediction
     dump_path = os.path.join(output_dir, 'aggregate_2d_prediction.png')
-    _ = visualization.plot_aggregate_2d_predictions(dataset=dataset,
+    _ = visualization.plot_aggregate_2d_predictions(dataset=standard_dataset,
                                                     target_key=cfg['dataset']['target'],
                                                     prediction_3d=prediction_3d,
                                                     aggregate_fn=aggregate_fn)
