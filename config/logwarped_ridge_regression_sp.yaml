@@ -47,7 +47,7 @@ model:
   # Whether to use bias or not
   fit_intercept: True
 
-  # Warping transformation
+  # Warping transformation - {'exp', 'smooth_abs', 'square', 'softplus', 'linear'}
   transform: 'linear'
 
 

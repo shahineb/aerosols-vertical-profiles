@@ -138,7 +138,7 @@ def fit(cfg, model, x, x_by_bag, z):
         aggregate_prediction_2d = model.aggregate_prediction(prediction_3d.unsqueeze(-1)).squeeze()
 
         # Compute loss
-        loss = torch.pow(aggregate_prediction_2d - z, 2).mean()
+        loss = torch.square(aggregate_prediction_2d - z).mean()
         loss += model.regularization_term()
 
         # Take gradient step
