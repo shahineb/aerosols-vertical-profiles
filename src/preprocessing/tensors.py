@@ -29,7 +29,7 @@ def make_3d_covariates_tensors(dataset, variables_keys):
         type: torch.Tensor
 
     """
-    grid_3d_t = make_grid_tensor(dataset, coords_keys=['time', 'h', 'lat', 'lon'])
+    grid_3d_t = make_grid_tensor(dataset, coords_keys=['time', 'lev', 'lat', 'lon'])
     covariates_grid = np.stack([dataset[key] for key in variables_keys], axis=-1)
     grid = torch.cat([grid_3d_t, torch.from_numpy(covariates_grid)], dim=-1).float()
     grid = grid.permute(0, 2, 3, 1, 4)

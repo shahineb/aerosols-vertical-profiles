@@ -68,7 +68,7 @@ def plot_vertical_covariates_slices(dataset, lat_idx, time_idx, covariates_keys)
 
     """
     slice_set = dataset.isel(lat=lat_idx, time=time_idx)
-    h = dataset.h.values
+    h = slice_set.isel(lon=10).h.values
     lon = dataset.lon.values
 
     ncols = len(covariates_keys)
@@ -111,7 +111,8 @@ def plot_vertical_prediction_slice(dataset, lat_idx, time_idx, groundtruth_key, 
         type: matplotlib.figure.Figure, numpy.ndarray
 
     """
-    h = dataset.h.values
+    
+    h = dataset.isel(lat=lat_idx, time=time_idx, lon=0).h.values
     lon = dataset.lon.values
 
     predicted_slice = prediction_3d[time_idx, lat_idx]

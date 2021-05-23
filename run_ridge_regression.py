@@ -17,6 +17,7 @@ import matplotlib.pyplot as plt
 import src.preprocessing as preproc
 from src.models import AggregateRidgeRegression
 from src.evaluation import metrics, visualization
+import numpy as np
 
 
 def main(args, cfg):
@@ -47,7 +48,7 @@ def main(args, cfg):
     # Dump plots in output dir
     if args['--plot']:
         dump_plots(cfg=cfg,
-                   dataset=standard_dataset,
+                   dataset=dataset,
                    prediction_3d=prediction_3d,
                    aggregate_fn=model.aggregate_fn,
                    output_dir=args['--o'])
@@ -57,7 +58,6 @@ def main(args, cfg):
 def make_datasets(cfg):
     # Load dataset
     dataset = preproc.load_dataset(file_path=cfg['dataset']['path'],
-                                   air_density_file_path=cfg['dataset']['air_density_file_path'],
                                    trimming_altitude_idx=cfg['dataset']['trimming_altitude_idx'])
 
     # Compute groundtruth 3D+t field
@@ -82,13 +82,19 @@ def make_datasets(cfg):
 
     return dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt
 
-
 def make_model(cfg, dataset):
-    # Make aggregation operator
-    h = torch.from_numpy(preproc.standardize(dataset.h.values))
-
+    
     def trpz(grid):
-        int_grid = -torch.trapz(y=grid, x=h, dim=-2)
+        
+        # Create aggregation operator
+        h_grid = torch.from_numpy(preproc.standardize(dataset.h.values)).float()
+        if len(grid.shape) == 3:
+            h_grid = h_grid.reshape(h_grid.size(0)*h_grid.size(2)*h_grid.size(3), h_grid.size(1)).unsqueeze(-1)
+            
+        if len(grid.shape) == 5:
+            h_grid = h_grid.permute(0,2,3,1).unsqueeze(-1)
+            
+        int_grid = -torch.trapz(y=grid, x=h_grid, dim=-2)
         return int_grid
 
     # Instantiate model

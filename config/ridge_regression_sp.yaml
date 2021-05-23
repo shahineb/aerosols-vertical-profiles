@@ -5,10 +5,7 @@
 # DATASET
 dataset:
   # Path to main model data .nc file
-  path: data/south_pac_lat_321_lon_321_lev_72_t_6_sulfates.nc
-
-  # Path to air density file
-  air_density_file_path: data/air_density_sp.nc
+  path: data/sulfates/south_pac_lat_321_lon_321_t_6_sulfates_final.nc
 
   # Altitude index below which data is dropped
   trimming_altitude_idx: 25
@@ -16,8 +13,8 @@ dataset:
   # Variable for which a logdomain version is created names log_<variable_name> - does not override original variable
   to_log_domain:
     - rh
-    - co
     - so4
+    - so2
 
   # Variables to use as 3D covariates
   3d_covariates:
@@ -25,16 +22,14 @@ dataset:
     - t
     - w
     - delp
-    - log_co
     - log_so4
+    - log_so2
 
   # Variable to use as 2D aggregate target
   target: so4cmass
 
   # Variable corresponding to unobserved groundtruth 3D field
   groundtruth: so4_mass_conc
-
-
 
 
 # MODEL SPECIFICATIONS
@@ -44,8 +39,6 @@ model:
 
   # Whether to use bias or not
   fit_intercept: True
-
-
 
 
 # EVALUATION
@@ -62,5 +55,5 @@ evaluation:
     - t
     - w
     - delp
-    - co
     - so4
+    - so2
