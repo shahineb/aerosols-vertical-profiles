@@ -83,17 +83,17 @@ def make_datasets(cfg):
     return dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt
 
 def make_model(cfg, dataset):
-    
+
     def trpz(grid):
-        
+
         # Create aggregation operator
         h_grid = torch.from_numpy(preproc.standardize(dataset.h.values)).float()
         if len(grid.shape) == 3:
             h_grid = h_grid.reshape(h_grid.size(0)*h_grid.size(2)*h_grid.size(3), h_grid.size(1)).unsqueeze(-1)
-            
+
         if len(grid.shape) == 5:
             h_grid = h_grid.permute(0,2,3,1).unsqueeze(-1)
-            
+
         int_grid = -torch.trapz(y=grid, x=h_grid, dim=-2)
         return int_grid
 
