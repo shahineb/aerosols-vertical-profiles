@@ -59,7 +59,6 @@ def main(args, cfg):
 def make_datasets(cfg):
     # Load dataset
     dataset = preproc.load_dataset(file_path=cfg['dataset']['path'],
-                                   air_density_file_path=cfg['dataset']['air_density_file_path'],
                                    trimming_altitude_idx=cfg['dataset']['trimming_altitude_idx'])
 
     # Compute groundtruth 3D+t field
