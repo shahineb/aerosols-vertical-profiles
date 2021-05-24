@@ -48,3 +48,55 @@ dataset:
 
   # Variable corresponding to unobserved groundtruth 3D field
   groundtruth: so4_mass_conc
+
+
+
+# MODEL SPECIFICATIONS
+model:
+  # Number of inducing points to use
+  n_inducing_points: 211
+
+  # Transformation to apply
+  transform: 'linear'
+
+  # Inverse regularization parameter for CME estimation
+  lbda: 0.01
+
+
+# TRAINING SPECS
+training:
+  # Batch size
+  batch_size: 128
+
+  # Batch size used for CMO estimation
+  batch_size_xy: 400
+
+  # Number of training epochs
+  n_epochs: 100
+
+  # Learning rate
+  lr: 0.1
+
+  # Beta weighthing of KL term in ELBO
+  beta: 1e-3
+
+
+# EVALUATION
+evaluation:
+  # Size of chunks used to scale inference of posterior mean
+  chunk_size: 500
+
+  # Latitude index of slice to plot
+  slice_latitude_idx: 50
+
+  # Time index of slice to plot
+  slice_time_idx: 0
+
+  # List of variables slices to plot
+  slices_covariates:
+    - rh
+    - t
+    - w
+    - delp
+    - co
+    - so4
