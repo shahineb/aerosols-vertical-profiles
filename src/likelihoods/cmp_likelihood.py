@@ -6,7 +6,12 @@ from gpytorch.likelihoods import GaussianLikelihood
 
 class CMPLikelihood(GaussianLikelihood):
 
-    def expected_log_prob(self, observations, variational_dist, root_inv_bags_covar_11, bags_covar_12, transform):
+    def __init__(self, loc=0., scale=1., noise_prior=None, noise_constraint=None, batch_shape=torch.Size(), **kwargs):
+        super().__init__(noise_prior=noise_prior, noise_constraint=noise_constraint, batch_shape=batch_shape, **kwargs)
+        self.loc = loc
+        self.scale = scale
+
+    def expected_log_prob(self, observations, variational_dist, aggregation_support, root_inv_bags_covar_11, bags_covar_12, transform):
         """Computes 1-sample Monte Carlo esimate of expected loglikelihood under posterior variational distribution
             with reparametrization trick
 
@@ -34,9 +39,12 @@ class CMPLikelihood(GaussianLikelihood):
 
         # Shift and rescale by posterior variational parameters
         f = variational_mean + variational_covar_root @ eps
+        warped_f = transform(f)
+        agg_warped_f = -torch.trapz(y=warped_f.reshape(*aggregation_support.shape), x=aggregation_support, dim=-1)
 
         # Apply transformation and aggregate
-        agg_transformed_f = agg_term @ root_inv_bags_covar_11.t() @ transform(f)
+        agg_transformed_f = agg_term @ root_inv_bags_covar_11.t() @ agg_warped_f
+        std_agg_transformed_f = (agg_transformed_f - self.loc) / self.scale
 
         # Compute loglikelihood
         constant_term = len(observations) * torch.log(2 * np.pi * self.noise)

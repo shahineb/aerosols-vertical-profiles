@@ -4,7 +4,7 @@ from gpytorch.models import ApproximateGP
 from gpytorch import variational
 
 
-class VariationalCMP(ApproximateGP):
+class VariationalCIP(ApproximateGP):
     """Sparse Variational Kernel Conditional Mean Process
 
     Args:
