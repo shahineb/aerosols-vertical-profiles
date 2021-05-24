@@ -45,14 +45,15 @@ def main(args, cfg):
                   'standard_dataset': standard_dataset,
                   'h_grid': h_grid,
                   'h': h,
+                  'x': x,
                   'x_by_bag': x_by_bag,
                   'y': y,
                   'z': z,
                   'groundtruth_3d': gt_grid,
                   'targets_2d': z_grid,
-                  'log_every': args['--log_every'],
+                  'log_every': int(args['--log_every']),
                   'plot': args['--plot'],
-                  'plot_every': args['--plot_every'],
+                  'plot_every': int(args['--plot_every']),
                   'output_dir': args['--o'],
                   'device_idx': args['--device']}
     model = fit(**fit_kwargs)
@@ -166,7 +167,9 @@ def fit(cfg, model, dataset, standard_dataset,
         return int_grid
 
     # Define likelihood module
-    likelihood = CMPLikelihood()
+    target_variable_key = cfg['dataset']['target']
+    target_mean, target_std = torch.tensor(dataset[target_variable_key].mean().values), torch.tensor(dataset[target_variable_key].std().values)
+    likelihood = CMPLikelihood(loc=target_mean, scale=target_std)
 
     # Training mode
     model.train()
@@ -216,41 +219,43 @@ def fit(cfg, model, dataset, standard_dataset,
             batch_bar.suffix = f"Running ELBO {-epoch_loss / (i + 1)}"
             batch_bar.next()
 
-    # Whether logs and plots must me dumped at this epoch
-    dump_epoch_logs = epoch % log_every == 0
-    dump_epoch_plots = plot and epoch % plot_every == 0
+        # Whether logs and plots must me dumped at this epoch
+        dump_epoch_logs = (epoch % log_every == 0)
+        dump_epoch_plots = (plot and epoch % plot_every == 0)
 
-    if dump_epoch_logs or dump_epoch_plots:
-        # Run inference on all 3D covariates
-        prediction_3d = predict(model=model,
-                                x=x,
-                                chunk_size=cfg['evaluation']['chunk_size'],
-                                output_shape=groundtruth_3d.shape)
+        if dump_epoch_logs or dump_epoch_plots:
+            # Run inference on all 3D covariates
+            prediction_3d = predict(model=model,
+                                    x=x,
+                                    chunk_size=cfg['evaluation']['chunk_size'],
+                                    output_shape=groundtruth_3d.shape)
 
-    # Compute metrics and dump logs if needed
-    if dump_epoch_logs:
-        epoch_logs = get_epoch_logs(model=model,
-                                    likelihood=likelihood,
-                                    prediction_3d=prediction_3d,
-                                    groundtruth_3d=groundtruth_3d,
-                                    targets_2d=targets_2d,
-                                    aggregate_fn=aggregate_fn)
-        epoch_logs.update({'loss': epoch_loss / (len(z) // batch_size)})
-        with open(os.path.join(output_dir, 'running_logs.yaml'), 'w') as f:
-            yaml.dump({'epoch': logs}, f)
+        # Compute metrics and dump logs if needed
+        if dump_epoch_logs:
+            epoch_logs = get_epoch_logs(model=model,
+                                        likelihood=likelihood,
+                                        prediction_3d=prediction_3d,
+                                        groundtruth_3d=groundtruth_3d,
+                                        targets_2d=targets_2d,
+                                        aggregate_fn=aggregate_fn)
+            epoch_logs.update({'loss': epoch_loss / (len(z) // batch_size)})
+            with open(os.path.join(output_dir, 'running_logs.yaml'), 'w') as f:
+                yaml.dump({'epoch': logs}, f)
 
-    # Dump plots if needed
-    if dump_epoch_plots:
-        dump_plots(cfg=cfg,
-                   dataset=dataset,
-                   standard_dataset=standard_dataset,
-                   prediction_3d=prediction_3d,
-                   aggregate_fn=aggregate_fn,
-                   output_dir=os.path.join(output_dir, f'png/epoch_{epoch}'))
+        # Dump plots if needed
+        if dump_epoch_plots:
+            dump_dir = os.path.join(output_dir, f'png/epoch_{epoch}')
+            os.makedirs(dump_dir, exist_ok=True)
+            dump_plots(cfg=cfg,
+                       dataset=dataset,
+                       standard_dataset=standard_dataset,
+                       prediction_3d=prediction_3d,
+                       aggregate_fn=aggregate_fn,
+                       output_dir=dump_dir)
 
-    # Complete progress bar
-    epoch_bar.next()
-    epoch_bar.finish()
+        # Complete progress bar
+        epoch_bar.next()
+        epoch_bar.finish()
 
     # Save model training state
     state = {'epoch': n_epochs,
@@ -296,10 +301,10 @@ def get_epoch_logs(model, likelihood, prediction_3d, groundtruth_3d, targets_2d,
     return output
 
 
-def dump_plots(cfg, dataset, prediction_3d, aggregate_fn, output_dir):
+def dump_plots(cfg, dataset, standard_dataset, prediction_3d, aggregate_fn, output_dir):
     # First plot - aggregate 2D prediction
     dump_path = os.path.join(output_dir, 'aggregate_2d_prediction.png')
-    _ = visualization.plot_aggregate_2d_predictions(dataset=dataset,
+    _ = visualization.plot_aggregate_2d_predictions(dataset=standard_dataset,
                                                     target_key=cfg['dataset']['target'],
                                                     prediction_3d=prediction_3d,
                                                     aggregate_fn=aggregate_fn)
