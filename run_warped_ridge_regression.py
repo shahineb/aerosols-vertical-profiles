@@ -23,10 +23,10 @@ from src.evaluation import metrics, visualization
 def main(args, cfg):
     # Create dataset
     logging.info("Loading dataset")
-    dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt = make_datasets(cfg=cfg)
+    dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt, h_grid, h = make_datasets(cfg=cfg)
 
     # Instantiate model
-    model = make_model(cfg=cfg, dataset=dataset)
+    model = make_model(cfg=cfg, dataset=dataset, h_grid=h)
     logging.info(f"{model}")
 
     # Fit model
@@ -74,27 +74,38 @@ def make_datasets(cfg):
     x_grid = preproc.make_3d_covariates_tensors(dataset=standard_dataset, variables_keys=cfg['dataset']['3d_covariates'])
     z_grid = preproc.make_2d_target_tensor(dataset=standard_dataset, target_variable_key=cfg['dataset']['target'])
     gt_grid = preproc.make_3d_groundtruth_tensor(dataset=dataset, groundtruth_variable_key=cfg['dataset']['groundtruth'])
+    
+    h_grid = preproc.make_3d_groundtruth_tensor(dataset=standard_dataset, groundtruth_variable_key='h')
 
     # Reshape tensors
+    h = h_grid.reshape(-1, x_grid.size(-2))
     x_by_bag = x_grid.reshape(-1, x_grid.size(-2), x_grid.size(-1))
     x = x_by_bag.reshape(-1, x_grid.size(-1))
     z = z_grid.flatten()
     gt = gt_grid.flatten()
 
-    return dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt
+    return dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt, h_grid, h
 
 
-def make_model(cfg, dataset):
+def make_model(cfg, dataset, h_grid):
     # Make aggregation operator
-    h = torch.from_numpy(dataset.h.values)
-
+#     h = torch.from_numpy(dataset.h[0, :, 0, 0].values)
+    
     target_variable_key = cfg['dataset']['target']
     target_mean, target_std = torch.tensor(dataset[target_variable_key].mean().values), torch.tensor(dataset[target_variable_key].std().values)
-
-    def trpz(grid):
-        int_grid = -torch.trapz(y=grid, x=h, dim=-2)
+    
+    # Define an aggregation operator over the entire grid used for evaluation
+    def trpz(grid):        
+        print(f'dim of data grid is {grid.shape}')
+        print(f'dim of h grid is {h_grid.unsqueeze(-1).shape}')
+        int_grid = -torch.trapz(y=grid, x=h_grid.unsqueeze(-1), dim=-2)
         int_grid = (int_grid - target_mean) / target_std
         return int_grid
+    
+#     def trpz(grid):
+#         int_grid = -torch.trapz(y=grid, x=h, dim=-2)
+#         int_grid = (int_grid - target_mean) / target_std
+#         return int_grid
 
     # Define warping transformation
     if cfg['model']['transform'] == 'linear':

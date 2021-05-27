@@ -5,30 +5,30 @@
 # DATASET
 dataset:
   # Path to main model data .nc file
-  path: data/sulfates/south_pac_lat_321_lon_321_t_6_sulfates_final.nc
+  path: data/sulfates/final_dataset_lat_321_lon_321_t_6_01_2007.nc
 
   # Altitude index below which data is dropped
-  trimming_altitude_idx: 25
+  trimming_altitude_idx: 20
 
   # Variable for which a logdomain version is created names log_<variable_name> - does not override original variable
   to_log_domain:
     - rh
     - so2
+    - co
 
   # Variables to use as 3D covariates
   3d_covariates:
     - t
     - w
-    - log_rh
-    - log_so2
+    - rh
+    - so2
+    #- co
 
   # Variable to use as 2D aggregate target
   target: so4cmass
 
   # Variable corresponding to unobserved groundtruth 3D field
   groundtruth: so4_mass_conc
-
-
 
 
 # MODEL SPECIFICATIONS
@@ -61,7 +61,7 @@ evaluation:
   slice_latitude_idx: 50
 
   # Time index of slice to plot
-  slice_time_idx: 0
+  slice_time_idx: 1
 
   # List of variables slices to plot
   slices_covariates:
@@ -69,3 +69,6 @@ evaluation:
     - w
     - rh
     - so2
+    - so4
+    - co
+    - airdens

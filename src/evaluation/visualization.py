@@ -122,6 +122,12 @@ def plot_vertical_prediction_slice(dataset, lat_idx, time_idx, groundtruth_key, 
     squared_error = difference ** 2
     total_rmse = round(np.sqrt(np.mean(squared_error)), 4)
 
+#     vmin_gt = groundtruth_slice.min()
+#     vmax_gt = groundtruth_slice.max()
+    
+#     vmin_pred = predicted_slice.min()
+#     vmax_pred = predicted_slice.max()
+    
     vmin = min(groundtruth_slice.min(), predicted_slice.min())
     vmax = max(groundtruth_slice.max(), predicted_slice.max())
     diffmax = np.abs(difference).max()

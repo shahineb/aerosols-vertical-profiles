@@ -33,10 +33,18 @@ def main(args, cfg):
     model.fit(x_by_bag, z)
     logging.info("Fitted model")
 
+    h_std = dataset.h.std().values
+    target_mean = torch.tensor(dataset[cfg['dataset']['target']].mean().values)
+    target_std = torch.tensor(dataset[cfg['dataset']['target']].std().values)
+    print(f'h standard dev is {h_std}')
     # Run prediction
     with torch.no_grad():
         prediction = model(x)
+        print(f'pred max before destandard is {torch.max(prediction)}')
         prediction_3d = prediction.reshape(*gt_grid.shape)
+        prediction_3d_dest = target_std * (prediction_3d + target_mean) / h_std
+        print(f'pred max after destandard is {torch.max(prediction_3d_dest)}')
+        print(f'max of ground truth is {torch.max(gt)}')
 
     # Dump scores in output dir
     dump_scores(prediction_3d=prediction_3d,
@@ -46,10 +54,12 @@ def main(args, cfg):
                 output_dir=args['--o'])
 
     # Dump plots in output dir
-    if args['--plot']:
+    if args['--plot']: 
         dump_plots(cfg=cfg,
                    dataset=dataset,
+                   standard_dataset=standard_dataset, 
                    prediction_3d=prediction_3d,
+                   prediction_3d_dest=prediction_3d_dest,
                    aggregate_fn=model.aggregate_fn,
                    output_dir=args['--o'])
         logging.info("Dumped plots")
@@ -72,8 +82,8 @@ def make_datasets(cfg):
     # Convert into pytorch tensors
     x_grid = preproc.make_3d_covariates_tensors(dataset=standard_dataset, variables_keys=cfg['dataset']['3d_covariates'])
     z_grid = preproc.make_2d_target_tensor(dataset=standard_dataset, target_variable_key=cfg['dataset']['target'])
-    gt_grid = preproc.make_3d_groundtruth_tensor(dataset=standard_dataset, groundtruth_variable_key=cfg['dataset']['groundtruth'])
-
+    gt_grid = preproc.make_3d_groundtruth_tensor(dataset=dataset, groundtruth_variable_key=cfg['dataset']['groundtruth'])
+    
     # Reshape tensors
     x_by_bag = x_grid.reshape(-1, x_grid.size(-2), x_grid.size(-1))
     x = x_by_bag.reshape(-1, x_grid.size(-1))
@@ -85,16 +95,11 @@ def make_datasets(cfg):
 def make_model(cfg, dataset):
 
     def trpz(grid):
-
         # Create aggregation operator
-        h_grid = torch.from_numpy(preproc.standardize(dataset.h.values)).float()
-        if len(grid.shape) == 3:
-            h_grid = h_grid.reshape(h_grid.size(0)*h_grid.size(2)*h_grid.size(3), h_grid.size(1)).unsqueeze(-1)
-
-        if len(grid.shape) == 5:
-            h_grid = h_grid.permute(0,2,3,1).unsqueeze(-1)
-
-        int_grid = -torch.trapz(y=grid, x=h_grid, dim=-2)
+        h = preproc.standardize(dataset.h[0, :, 0, 0].values)
+        std_h_grid = torch.from_numpy(h)
+#         h_grid = torch.from_numpy(preproc.standardize(h)).float()
+        int_grid = -torch.trapz(y=grid, x=std_h_grid, dim=-2)
         return int_grid
 
     # Instantiate model
@@ -102,6 +107,20 @@ def make_model(cfg, dataset):
                                      aggregate_fn=trpz,
                                      fit_intercept=cfg['model']['fit_intercept'])
     return model
+
+# def predict(model, x, dataset, cfg, gt_grid):
+#     h_std = torch.tensor(dataset.h.std().values
+#     target_mean = torch.tensor(dataset[cfg['dataset']['target']].mean().values)
+#     target_std = torch.tensor(dataset[cfg['dataset']['target']].std().values)
+
+#     with torch.no_grad():
+#         prediction = model(x)
+#         print(f'pred max before destandard is {torch.max(prediction)}')
+#         prediction_3d = prediction.reshape(*gt_grid.shape)
+#         prediction_3d_dest = prediction_3d / h_std
+#         print(f'pred max after destandard is {torch.max(prediction_3d_dest)}')
+#         print(f'max of ground truth is {torch.max(gt)}')
+
 
 
 def dump_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn, output_dir):
@@ -112,10 +131,10 @@ def dump_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn, output_
     logging.info(f"Dumped scores at {dump_path}")
 
 
-def dump_plots(cfg, dataset, prediction_3d, aggregate_fn, output_dir):
+def dump_plots(cfg, dataset, standard_dataset, prediction_3d, prediction_3d_dest, aggregate_fn, output_dir):
     # First plot - aggregate 2D prediction
     dump_path = os.path.join(output_dir, 'aggregate_2d_prediction.png')
-    _ = visualization.plot_aggregate_2d_predictions(dataset=dataset,
+    _ = visualization.plot_aggregate_2d_predictions(dataset=standard_dataset,
                                                     target_key=cfg['dataset']['target'],
                                                     prediction_3d=prediction_3d,
                                                     aggregate_fn=aggregate_fn)
@@ -137,7 +156,7 @@ def dump_plots(cfg, dataset, prediction_3d, aggregate_fn, output_dir):
                                                      lat_idx=cfg['evaluation']['slice_latitude_idx'],
                                                      time_idx=cfg['evaluation']['slice_time_idx'],
                                                      groundtruth_key=cfg['dataset']['groundtruth'],
-                                                     prediction_3d=prediction_3d)
+                                                     prediction_3d=prediction_3d_dest)
     plt.savefig(dump_path)
     plt.close()
 
