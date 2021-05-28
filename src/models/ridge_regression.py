@@ -147,10 +147,10 @@ class TwoStageRidgeRegression2D(nn.Module):
         fit_intercept_3d (bool): if True, pads 3D inputs with constant offset
     """
 
-    def __init__(self, alpha2d, alpha3d, aggregate_fn, fit_intercept_2d=False, fit_intercept_3d=False):
+    def __init__(self, alpha_2d, alpha_3d, aggregate_fn, fit_intercept_2d=False, fit_intercept_3d=False):
         super().__init__()
-        self.alpha2d = alpha2d
-        self.alpha3d = alpha3d
+        self.alpha_2d = alpha_2d
+        self.alpha_3d = alpha_3d
         self.aggregate_fn = aggregate_fn
         self.fit_intercept_2d = fit_intercept_2d
         self.fit_intercept_3d = fit_intercept_3d
@@ -189,13 +189,13 @@ class TwoStageRidgeRegression2D(nn.Module):
 
         # Compute first regression stage
         Q_2d = (bags_covariates.t() @ bags_covariates + n_bags * self.alpha_2d * torch.eye(d_2d))
-        upsilon = Q_2d.inv_matmul(bags_covariates.t())
+        aggX = self.aggregate_fn(individuals_covariates)
+        upsilon = gpytorch.inv_matmul(Q_2d, bags_covariates.t() @ aggX)
+        y_upsilon = bags_covariates @ upsilon
 
         # Compute second regression stage
-        aggX = self.aggregate_fn(individuals_covariates)
-        Q_3d = aggX.t() @ upsilon.t() @  upsilon @ aggX + n_bags * self.alpha_3d * torch.eye(d_3d)
-        beta = gpytorch.inv_matmul(Q_3d, aggX.t() @ upsilon.t() @ aggregate_targets)
-
+        Q_3d = (y_upsilon.t() @ y_upsilon + n_bags * self.alpha_3d * torch.eye(d_3d))
+        beta = gpytorch.inv_matmul(Q_3d, y_upsilon.t() @ aggregate_targets)
         self.register_buffer('beta', beta)
 
     def forward(self, x):
@@ -209,6 +209,6 @@ class TwoStageRidgeRegression2D(nn.Module):
             type: torch.Tensor
 
         """
-        if self.fit_intercept:
+        if self.fit_intercept_3d:
             x = self.pad_input(x)
         return x @ self.beta

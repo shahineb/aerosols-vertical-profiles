@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 import src.preprocessing as preproc
 from src.models import TwoStageRidgeRegression2D
 from src.evaluation import metrics, visualization
-import numpy as np
 
 
 def main(args, cfg):
@@ -33,7 +32,7 @@ def main(args, cfg):
     model.fit(x_by_bag, y, z)
     logging.info("Fitted model")
 
-    # Get factors for destandardisation
+    # Get factors for destandardisation
     h_std = dataset.h.std().values
     target_mean = torch.tensor(dataset[cfg['dataset']['target']].mean().values)
     target_std = torch.tensor(dataset[cfg['dataset']['target']].std().values)
@@ -42,8 +41,6 @@ def main(args, cfg):
     with torch.no_grad():
         prediction = model(x)
         prediction_3d = prediction.reshape(*gt_grid.shape)
-
-        # destandardise 3d prediction
         prediction_3d_dest = target_std * (prediction_3d + target_mean) / h_std
 
     # Dump scores in output dir
@@ -62,7 +59,6 @@ def main(args, cfg):
                    standard_dataset=standard_dataset,
                    prediction_3d=prediction_3d,
                    prediction_3d_dest=prediction_3d_dest,
-#                    h_std=h_std,
                    aggregate_fn=model.aggregate_fn,
                    output_dir=args['--o'])
         logging.info("Dumped plots")
@@ -83,7 +79,7 @@ def make_datasets(cfg):
     standard_dataset = preproc.standardize(dataset)
 
     # Convert into pytorch tensors
-    h_grid = preproc.make_3d_groundtruth_tensor(dataset=dataset, groundtruth_variable_key='h')
+    h_grid = preproc.make_3d_groundtruth_tensor(dataset=standard_dataset, groundtruth_variable_key='h')
     x_grid = preproc.make_3d_covariates_tensors(dataset=standard_dataset, variables_keys=cfg['dataset']['3d_covariates'])
     y_grid = preproc.make_2d_covariates_tensors(dataset=standard_dataset, variables_keys=cfg['dataset']['2d_covariates'])
     z_grid_std = preproc.make_2d_target_tensor(dataset=standard_dataset, target_variable_key=cfg['dataset']['target'])
@@ -100,7 +96,7 @@ def make_datasets(cfg):
     return dataset, standard_dataset, h, h_grid, x_by_bag, x, y_grid, y, z_grid, z_grid_std, z, gt_grid, gt
 
 
-def make_model(cfg, dataset, h):
+def make_model(cfg, h):
     def trpz(grid):
         int_grid = -torch.trapz(y=grid, x=h.unsqueeze(-1), dim=-2)
         return int_grid

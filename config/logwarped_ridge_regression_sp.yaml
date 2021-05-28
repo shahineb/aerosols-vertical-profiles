@@ -5,7 +5,7 @@
 # DATASET
 dataset:
   # Path to main model data .nc file
-  path: data/sulfates/south_pac_lat_321_lon_321_t_6_sulfates_final.nc
+  path: data/sulfates/final_dataset_lat_321_lon_321_t_6_01_2007.nc
 
   # Altitude index below which data is dropped
   trimming_altitude_idx: 25
