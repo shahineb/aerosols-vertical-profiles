@@ -33,8 +33,12 @@ def compute_2d_aggregate_metrics(prediction_3d, targets_2d, aggregate_fn):
         type: dict[float]
 
     """
-    aggregate_prediction_2d = aggregate_fn(prediction_3d.unsqueeze(-1)).squeeze()
-    difference = aggregate_prediction_2d.sub(targets_2d)
+    # get prediction into shape that the aggregate function expects
+    n_col = prediction_3d.size(0)*prediction_3d.size(1)*prediction_3d.size(2)
+    prediction_3d = prediction_3d.reshape(n_col, -1)
+    
+    aggregate_prediction_2d = aggregate_fn(prediction_3d.unsqueeze(-1)).squeeze().flatten()
+    difference = aggregate_prediction_2d.sub(targets_2d.flatten())
     rmse = torch.square(difference).mean().sqrt()
     mae = torch.abs(difference).mean()
     corr = spearman_correlation(aggregate_prediction_2d.flatten(), targets_2d.flatten())

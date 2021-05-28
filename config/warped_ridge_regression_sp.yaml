@@ -22,7 +22,8 @@ dataset:
     - w
     - rh
     - so2
-    #- co
+    - ql
+    - co
 
   # Variable to use as 2D aggregate target
   target: so4cmass
@@ -48,7 +49,7 @@ model:
 # TRAINING
 training:
   # Number of training epochs
-  n_epochs: 1000
+  n_epochs: 500
 
   # Learning rate
   lr: 0.000001

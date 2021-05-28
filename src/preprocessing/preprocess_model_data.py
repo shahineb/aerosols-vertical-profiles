@@ -9,9 +9,6 @@ def load_dataset(file_path, trimming_altitude_idx):
                                               lon=slice(200, 350),
                                               time=slice(0, 3))
 
-    # Set h as altitude coordinate
-#     dataset = dataset.assign_coords(h=('lev', dataset.h.isel(time=0, lat=0, lon=0).values))
-
     # Trim altitude
     dataset = dataset.isel(lev=slice(trimming_altitude_idx, len(dataset.lev)))
 

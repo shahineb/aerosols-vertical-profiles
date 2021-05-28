@@ -23,10 +23,10 @@ import numpy as np
 def main(args, cfg):
     # Create dataset
     logging.info("Loading dataset")
-    dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt = make_datasets(cfg=cfg)
+    dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt, h_grid, h = make_datasets(cfg=cfg)
 
     # Instantiate model
-    model = make_model(cfg=cfg, dataset=standard_dataset)
+    model = make_model(cfg=cfg, dataset=standard_dataset, h=h)
     logging.info(f"{model}")
 
     # Fit model
@@ -40,14 +40,14 @@ def main(args, cfg):
     # Run prediction
     with torch.no_grad():
         prediction = model(x)
-        print(f'pred max before destandard is {torch.max(prediction)}')
         prediction_3d = prediction.reshape(*gt_grid.shape)
+        
+        # destandardise 3d prediction
         prediction_3d_dest = target_std * (prediction_3d + target_mean) / h_std
-        print(f'pred max after destandard is {torch.max(prediction_3d_dest)}')
-        print(f'max of ground truth is {torch.max(gt)}')
 
     # Dump scores in output dir
-    dump_scores(prediction_3d=prediction_3d,
+    dump_scores(
+                prediction_3d=prediction_3d,
                 groundtruth_3d=gt_grid,
                 targets_2d=z_grid,
                 aggregate_fn=model.aggregate_fn,
@@ -83,23 +83,27 @@ def make_datasets(cfg):
     x_grid = preproc.make_3d_covariates_tensors(dataset=standard_dataset, variables_keys=cfg['dataset']['3d_covariates'])
     z_grid = preproc.make_2d_target_tensor(dataset=standard_dataset, target_variable_key=cfg['dataset']['target'])
     gt_grid = preproc.make_3d_groundtruth_tensor(dataset=dataset, groundtruth_variable_key=cfg['dataset']['groundtruth'])
-    
+    h_grid = preproc.make_3d_groundtruth_tensor(dataset=standard_dataset, groundtruth_variable_key='h')
+
     # Reshape tensors
     x_by_bag = x_grid.reshape(-1, x_grid.size(-2), x_grid.size(-1))
     x = x_by_bag.reshape(-1, x_grid.size(-1))
     z = z_grid.flatten()
     gt = gt_grid.flatten()
+    h = h_grid.reshape(-1, x_grid.size(-2))
+    
 
-    return dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt
+    return dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt, h_grid, h
 
-def make_model(cfg, dataset):
+def make_model(cfg, dataset, h):
 
     def trpz(grid):
         # Create aggregation operator
-        h = preproc.standardize(dataset.h[0, :, 0, 0].values)
-        std_h_grid = torch.from_numpy(h)
+#         h = preproc.standardize(dataset.h[0, :, 0, 0].values)
+#         std_h_grid = torch.from_numpy(h)
 #         h_grid = torch.from_numpy(preproc.standardize(h)).float()
-        int_grid = -torch.trapz(y=grid, x=std_h_grid, dim=-2)
+
+        int_grid = -torch.trapz(y=grid, x=h.unsqueeze(-1), dim=-2)
         return int_grid
 
     # Instantiate model
