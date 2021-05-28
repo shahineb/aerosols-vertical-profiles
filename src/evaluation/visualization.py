@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-
+import torch
 
 def plot_aggregate_2d_predictions(dataset, target_key, prediction_3d, aggregate_fn):
     """Plots aggregation of 3D+t prediction, 2D+t aggregate targets used for training and difference
@@ -75,8 +75,8 @@ def plot_vertical_covariates_slices(dataset, lat_idx, time_idx, covariates_keys)
     h = slice_set.isel(lon=10).h.values
     lon = dataset.lon.values
 
-    ncols = len(covariates_keys)
-    fig, ax = plt.subplots(1, ncols, figsize=(4 * ncols, 2 * ncols))
+    nrows = len(covariates_keys)
+    fig, ax = plt.subplots(nrows, 1, figsize=(2 * nrows, 4 * nrows))
     cmap = 'magma'
     n_x_ticks = 20
     n_y_ticks = 20
@@ -84,18 +84,18 @@ def plot_vertical_covariates_slices(dataset, lat_idx, time_idx, covariates_keys)
     labels_fontsize = 18
     cbar_fontsize = 18
 
-    for i in range(ncols):
+    for i in range(nrows):
         key = covariates_keys[i]
-        im = ax[i].imshow(slice_set[key].values.T, cmap=cmap)
-        ax[i].set_xticks(range(0, len(h), n_x_ticks))
-        ax[i].set_xticklabels(h[::n_x_ticks], rotation=10)
-        ax[i].set_yticks(range(0, len(lon), n_y_ticks))
-        ax[i].set_yticklabels(lon[::n_y_ticks])
+        im = ax[i].imshow(slice_set[key].values, cmap=cmap)
+        ax[i].set_xticks(range(0, len(lon), n_x_ticks))
+        ax[i].set_xticklabels(lon[::n_x_ticks])
+        ax[i].set_yticks(range(0, len(h), n_y_ticks))
+        ax[i].set_yticklabels(h[::n_x_ticks], rotation=10)
         ax[i].set_title(key, fontsize=title_fontsize)
-        cbar = plt.colorbar(im, orientation="horizontal", ax=ax[i], shrink=0.7)
+        cbar = plt.colorbar(im, orientation="vertical", ax=ax[i], shrink=0.7)
         cbar.ax.tick_params(labelsize=cbar_fontsize)
-    ax[0].set_xlabel('altitude', fontsize=labels_fontsize)
-    ax[0].set_ylabel('longitude', fontsize=labels_fontsize)
+    ax[0].set_xlabel('longitude', fontsize=labels_fontsize)
+    ax[0].set_ylabel('altitude', fontsize=labels_fontsize)
 
     plt.tight_layout()
     return fig, ax
@@ -126,57 +126,51 @@ def plot_vertical_prediction_slice(dataset, lat_idx, time_idx, groundtruth_key, 
     squared_error = difference ** 2
     total_rmse = round(np.sqrt(np.mean(squared_error)), 4)
 
-#     vmin_gt = groundtruth_slice.min()
-#     vmax_gt = groundtruth_slice.max()
-    
-#     vmin_pred = predicted_slice.min()
-#     vmax_pred = predicted_slice.max()
-    
     vmin = min(groundtruth_slice.min(), predicted_slice.min())
     vmax = max(groundtruth_slice.max(), predicted_slice.max())
     diffmax = np.abs(difference).max()
 
-    fig, ax = plt.subplots(1, 4, figsize=(18, 10))
+    fig, ax = plt.subplots(4, 1, figsize=(10, 18))
     cmap = 'magma'
     n_x_ticks = 20
     n_y_ticks = 20
     title_size = 22
     label_size = 18
 
-    im = ax[0].imshow(groundtruth_slice, cmap=cmap, vmin=vmin, vmax=vmax)
+    im = ax[0].imshow(groundtruth_slice.T, cmap=cmap, vmin=vmin, vmax=vmax)
     cbar = plt.colorbar(im, orientation="horizontal", ax=ax[0], shrink=0.7)
     cbar.ax.tick_params(labelsize=label_size)
     ax[0].set_title(f'Groundtruth \n ({groundtruth_key})', fontsize=title_size)
 
-    im = ax[1].imshow(predicted_slice, cmap=cmap, vmin=vmin, vmax=vmax)
+    im = ax[1].imshow(predicted_slice.T, cmap=cmap, vmin=vmin, vmax=vmax)
     cbar = plt.colorbar(im, orientation="horizontal", ax=ax[1], shrink=0.7)
     cbar.ax.tick_params(labelsize=label_size)
-    ax[1].set_xticks(range(0, len(h), 20))
-    ax[1].set_xticklabels(h[::20], rotation=10)
-    ax[1].set_yticks(range(0, len(lon), 20))
-    ax[1].set_yticklabels(lon[::20])
-    ax[1].set_xlabel('altitude', fontsize=label_size)
-    ax[1].set_ylabel('longitude', fontsize=label_size)
+    ax[1].set_xticks(range(0, len(lon), 20))
+    ax[1].set_xticklabels(lon[::20])
+    ax[1].set_yticks(range(0, len(h), 20))
+    ax[1].set_yticklabels(h[::20], rotation=10)
+    ax[1].set_xlabel('longitude', fontsize=label_size)
+    ax[1].set_ylabel('altitude', fontsize=label_size)
     ax[1].set_title('Prediction', fontsize=title_size)
 
-    im = ax[2].imshow(difference, cmap='bwr', vmin=-diffmax, vmax=diffmax)
+    im = ax[2].imshow(difference.T, cmap='bwr', vmin=-diffmax, vmax=diffmax)
     cbar = plt.colorbar(im, orientation="horizontal", ax=ax[2], shrink=0.7)
     cbar.ax.tick_params(labelsize=label_size)
-    ax[2].set_xticks(range(0, len(h), 20))
-    ax[2].set_xticklabels(h[::20], rotation=10)
-    ax[2].set_yticks(range(0, len(lon), 20))
-    ax[2].set_yticklabels(lon[::20])
-    ax[2].set_xlabel('altitude', fontsize=label_size)
-    ax[2].set_ylabel('longitude', fontsize=label_size)
+    ax[2].set_xticks(range(0, len(lon), 20))
+    ax[2].set_xticklabels(lon[::20])
+    ax[2].set_yticks(range(0, len(h), 20))
+    ax[2].set_yticklabels(h[::20], rotation=10)
+    ax[2].set_xlabel('longitude', fontsize=label_size)
+    ax[2].set_ylabel('altitude', fontsize=label_size)
     ax[2].set_title('Difference', fontsize=title_size)
 
     for i in range(3):
-        ax[i].set_xticks(range(0, len(h), n_x_ticks))
-        ax[i].set_xticklabels(h[::n_x_ticks], rotation=10)
-        ax[i].set_yticks(range(0, len(lon), n_y_ticks))
-        ax[i].set_yticklabels(lon[::n_y_ticks])
-        ax[i].set_xlabel('altitude', fontsize=label_size)
-        ax[i].set_ylabel('longitude', fontsize=label_size)
+        ax[i].set_xticks(range(0, len(lon), n_x_ticks))
+        ax[i].set_xticklabels(lon[::n_x_ticks])
+        ax[i].set_yticks(range(0, len(h), n_y_ticks))
+        ax[i].set_yticklabels(h[::n_y_ticks], rotation=10)
+        ax[i].set_xlabel('longitude', fontsize=label_size)
+        ax[i].set_ylabel('altitude', fontsize=label_size)
 
     ax[3].plot(h, np.sqrt(np.mean(squared_error, axis=0)), '--.', label=f'RMSE={total_rmse}')
     ax[3].grid(alpha=0.5)

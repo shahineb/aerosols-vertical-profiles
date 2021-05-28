@@ -32,11 +32,12 @@ def main(args, cfg):
     # Fit model
     model.fit(x_by_bag, z)
     logging.info("Fitted model")
-
+    
+    # Get factors for destandardisation
     h_std = dataset.h.std().values
     target_mean = torch.tensor(dataset[cfg['dataset']['target']].mean().values)
     target_std = torch.tensor(dataset[cfg['dataset']['target']].std().values)
-    print(f'h standard dev is {h_std}')
+    
     # Run prediction
     with torch.no_grad():
         prediction = model(x)
@@ -44,12 +45,17 @@ def main(args, cfg):
         
         # destandardise 3d prediction
         prediction_3d_dest = target_std * (prediction_3d + target_mean) / h_std
-
+        
+    # Add 2D covariates if specified
+#     if args['--2d']:
+#         ...
+        
     # Dump scores in output dir
     dump_scores(prediction_3d=prediction_3d,
                 prediction_3d_dest=prediction_3d_dest,
                 groundtruth_3d=gt_grid,
                 targets_2d=z_grid,
+                h_std=h_std,
                 aggregate_fn=model.aggregate_fn,
                 output_dir=args['--o'])
 
@@ -60,6 +66,7 @@ def main(args, cfg):
                    standard_dataset=standard_dataset, 
                    prediction_3d=prediction_3d,
                    prediction_3d_dest=prediction_3d_dest,
+#                    h_std=h_std,
                    aggregate_fn=model.aggregate_fn,
                    output_dir=args['--o'])
         logging.info("Dumped plots")
@@ -81,18 +88,18 @@ def make_datasets(cfg):
 
     # Convert into pytorch tensors
     x_grid = preproc.make_3d_covariates_tensors(dataset=standard_dataset, variables_keys=cfg['dataset']['3d_covariates'])
-    z_grid = preproc.make_2d_target_tensor(dataset=standard_dataset, target_variable_key=cfg['dataset']['target'])
+    z_grid_std = preproc.make_2d_target_tensor(dataset=standard_dataset, target_variable_key=cfg['dataset']['target'])
+    z_grid = preproc.make_2d_target_tensor(dataset=dataset, target_variable_key=cfg['dataset']['target'])
     gt_grid = preproc.make_3d_groundtruth_tensor(dataset=dataset, groundtruth_variable_key=cfg['dataset']['groundtruth'])
     h_grid = preproc.make_3d_groundtruth_tensor(dataset=standard_dataset, groundtruth_variable_key='h')
 
     # Reshape tensors
     x_by_bag = x_grid.reshape(-1, x_grid.size(-2), x_grid.size(-1))
     x = x_by_bag.reshape(-1, x_grid.size(-1))
-    z = z_grid.flatten()
+    z = z_grid_std.flatten()
     gt = gt_grid.flatten()
     h = h_grid.reshape(-1, x_grid.size(-2))
     
-
     return dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt, h_grid, h
 
 def make_model(cfg, dataset, h):
@@ -126,9 +133,8 @@ def make_model(cfg, dataset, h):
 #         print(f'max of ground truth is {torch.max(gt)}')
 
 
-
-def dump_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, aggregate_fn, output_dir):
-    scores = metrics.compute_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, aggregate_fn)
+def dump_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, h_std, aggregate_fn, output_dir):
+    scores = metrics.compute_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, h_std, aggregate_fn)
     dump_path = os.path.join(output_dir, 'scores.metrics')
     with open(dump_path, 'w') as f:
         yaml.dump(scores, f)
@@ -141,6 +147,7 @@ def dump_plots(cfg, dataset, standard_dataset, prediction_3d, prediction_3d_dest
     _ = visualization.plot_aggregate_2d_predictions(dataset=standard_dataset,
                                                     target_key=cfg['dataset']['target'],
                                                     prediction_3d=prediction_3d,
+#                                                     h_std=h_std,
                                                     aggregate_fn=aggregate_fn)
     plt.savefig(dump_path)
     plt.close()

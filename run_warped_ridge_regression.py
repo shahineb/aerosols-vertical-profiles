@@ -24,9 +24,6 @@ def main(args, cfg):
     # Create dataset
     logging.info("Loading dataset")
     dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt, h_grid, h = make_datasets(cfg=cfg)
-
-    # Compute height std for destandardisation
-    h_std = dataset.h.std().values
    
     # Instantiate model
     model = make_model(cfg=cfg, dataset=dataset, h=h)
@@ -36,6 +33,8 @@ def main(args, cfg):
     model = fit(cfg=cfg, model=model, x=x, x_by_bag=x_by_bag, z=z)
     logging.info("Fitted model")
     
+    # Compute height std for destandardisation
+    h_std = dataset.h.std().values
 
     # Run prediction
     with torch.no_grad():
@@ -48,6 +47,7 @@ def main(args, cfg):
                 prediction_3d_dest=prediction_3d_dest,
                 groundtruth_3d=gt_grid,
                 targets_2d=z_grid,
+                h_std=h_std,
                 aggregate_fn=model.aggregate_fn,
                 output_dir=args['--o'])
 
@@ -164,8 +164,8 @@ def fit(cfg, model, x, x_by_bag, z):
     return model
 
 
-def dump_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, aggregate_fn, output_dir):
-    scores = metrics.compute_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, aggregate_fn)
+def dump_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, aggregate_fn, h_std, output_dir):
+    scores = metrics.compute_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, h_std, aggregate_fn)
     dump_path = os.path.join(output_dir, 'scores.metrics')
     with open(dump_path, 'w') as f:
         yaml.dump(scores, f)

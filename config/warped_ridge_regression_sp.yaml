@@ -59,10 +59,10 @@ training:
 # EVALUATION
 evaluation:
   # Latitude index of slice to plot
-  slice_latitude_idx: 50
+  slice_latitude_idx: 70
 
   # Time index of slice to plot
-  slice_time_idx: 1
+  slice_time_idx: 0
 
   # List of variables slices to plot
   slices_covariates:
