@@ -1,21 +1,21 @@
 import torch
 
 
-def compute_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn):
+def compute_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, aggregate_fn):
     """Computes prediction scores
 
     Args:
         prediction_3d (torch.Tensor): (time, lat, lon, lev)
         groundtruth_3d (torch.Tensor): (time, lat, lon, lev)
         targets_2d (torch.Tensor): (time, lat, lon)
-        aggregate_fn (callable): callable used to aggregate (time, lat, lon, lev, -1) -> (time, lat, lon)
+        aggregate_fn (callable): callable used to aggregate (time, lat, lon, lev, -1) -> (time, lat, lo)
 
     Returns:
         type: Description of returned object.
 
     """
     scores_2d = compute_2d_aggregate_metrics(prediction_3d, targets_2d, aggregate_fn)
-    scores_3d = compute_3d_metrics(prediction_3d, groundtruth_3d)
+    scores_3d = compute_3d_metrics(prediction_3d_dest, groundtruth_3d)
     output = {'2d': scores_2d, '3d': scores_3d}
     return output
 

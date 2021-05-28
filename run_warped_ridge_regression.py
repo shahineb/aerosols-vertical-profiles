@@ -44,7 +44,8 @@ def main(args, cfg):
         prediction_3d_dest = prediction_3d / h_std
 
     # Dump scores in output dir
-    dump_scores(prediction_3d=prediction_3d_dest,
+    dump_scores(prediction_3d=prediction_3d,
+                prediction_3d_dest=prediction_3d_dest,
                 groundtruth_3d=gt_grid,
                 targets_2d=z_grid,
                 aggregate_fn=model.aggregate_fn,
@@ -163,8 +164,8 @@ def fit(cfg, model, x, x_by_bag, z):
     return model
 
 
-def dump_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn, output_dir):
-    scores = metrics.compute_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn)
+def dump_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, aggregate_fn, output_dir):
+    scores = metrics.compute_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, aggregate_fn)
     dump_path = os.path.join(output_dir, 'scores.metrics')
     with open(dump_path, 'w') as f:
         yaml.dump(scores, f)

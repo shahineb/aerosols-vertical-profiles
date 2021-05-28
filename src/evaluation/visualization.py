@@ -18,6 +18,7 @@ def plot_aggregate_2d_predictions(dataset, target_key, prediction_3d, aggregate_
     n_row = prediction_3d.size(0)
     n_col = prediction_3d.size(0)*prediction_3d.size(1)*prediction_3d.size(2)
     prediction_3d_grid = prediction_3d.reshape(n_col, -1)
+    
     aggregate_prediction_2d = aggregate_fn(prediction_3d_grid.unsqueeze(-1)).squeeze()
     aggregate_prediction_2d = aggregate_prediction_2d.reshape(n_row, prediction_3d.size(1), prediction_3d.size(2))
 
