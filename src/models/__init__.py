@@ -1,5 +1,4 @@
-from .ridge_regression import AggregateRidgeRegression, TransformedAggregateRidgeRegression
-from .variational_gp import VariationalCIP
+from .ridge_regression import AggregateRidgeRegression, TwoStageRidgeRegression2D, TransformedAggregateRidgeRegression
 
 __all__ = ['AggregateRidgeRegression', 'TransformedAggregateRidgeRegression',
-           'VariationalCIP']
+           'TwoStageRidgeRegression2D']
