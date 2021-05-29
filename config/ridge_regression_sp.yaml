@@ -12,16 +12,14 @@ dataset:
 
   # Variable for which a logdomain version is created names log_<variable_name> - does not override original variable
   to_log_domain:
-    - rh
-    - so2
-    - co
+    - t
 
   # Variables to use as 3D covariates
   3d_covariates:
     - t
-    - w
-    - co
-    - rh
+#     - w
+#     - co
+#     - rh
     - so2
     - ql
 

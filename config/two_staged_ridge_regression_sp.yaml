@@ -22,20 +22,19 @@ dataset:
 
   # Variables to use as 2D covariates
   2d_covariates:
-    - tlml
-    - pblh
-    - log_dmssmass
-    - log_so2cmass
-    - log_so2smass
-    - log_lwp
+#     - tlml
+#     - pblh
+#     - so4cmass
+#     - dmssmass
+    - so2cmass
+#     - so2smass
+    - lwp
 
 
   # Variables to use as 3D covariates
   3d_covariates:
     - t
     - w
-    - co
-    - rh
     - so2
     - ql
 
@@ -49,16 +48,16 @@ dataset:
 # MODEL SPECIFICATIONS
 model:
   # L2 regularization weight for stage 1
-  alpha_2d: 0.01
+  alpha_2d: 5
 
   # L2 regularization weight for stage 2
-  alpha_3d: 0.01
+  alpha_3d: 0.001
 
   # Whether to use bias or not in stage 1
-  fit_intercept_2d: False
+  fit_intercept_2d: True
 
   # Whether to use bias or not in stage 1
-  fit_intercept_3d: False
+  fit_intercept_3d: True
 
 
 # EVALUATION
