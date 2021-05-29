@@ -278,11 +278,11 @@ class TwoStagedTransformedAggregateRidgeRegression(nn.Module):
         Q_2d = (bags_covariates.t() @ bags_covariates + n_bags * self.alpha_2d * torch.eye(d_2d))
 
         # Compute matrix inverse with matrix-vector multiplication trick
-        upsilon = gpytorch.inv_matmul(Q_2d, bags_covariates.t())
+        upsilon = gpytorch.inv_matmul(Q_2d, bags_covariates.t() @ aggregate_prediction_2d)
         y_upsilon = bags_covariates @ upsilon
 
         # Compute and return mean square error
-        difference = aggregate_targets - y_upsilon @ aggregate_prediction_2d
+        difference = aggregate_targets - y_upsilon
         mean_squared_error = torch.square(difference).mean()
         return mean_squared_error
 
