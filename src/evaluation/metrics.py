@@ -1,4 +1,5 @@
 import torch
+from scipy.stats import spearmanr
 
 
 def compute_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn):
@@ -34,15 +35,15 @@ def compute_2d_aggregate_metrics(prediction_3d, targets_2d, aggregate_fn):
 
     """
     # get prediction into shape that the aggregate function expects
-    n_col = prediction_3d.size(0)*prediction_3d.size(1)*prediction_3d.size(2)
+    n_col = prediction_3d.size(0) * prediction_3d.size(1) * prediction_3d.size(2)
     prediction_3d = prediction_3d.reshape(n_col, -1)
     aggregate_prediction_2d = aggregate_fn(prediction_3d.unsqueeze(-1)).squeeze().flatten()
-        
+
     difference = aggregate_prediction_2d.sub(targets_2d.flatten())
     rmse = torch.square(difference).mean().sqrt()
     mae = torch.abs(difference).mean()
     corr = spearman_correlation(aggregate_prediction_2d.flatten(), targets_2d.flatten())
-    output = {'rmse': rmse.item(), 'mae': mae.item(), 'corr': corr.item()}
+    output = {'rmse': rmse.item(), 'mae': mae.item(), 'corr': corr}
     return output
 
 
@@ -61,7 +62,7 @@ def compute_3d_metrics(prediction_3d, groundtruth_3d):
     rmse = torch.square(difference).mean().sqrt()
     mae = torch.abs(difference).mean()
     corr = spearman_correlation(prediction_3d.flatten(), groundtruth_3d.flatten())
-    output = {'rmse': rmse.item(), 'mae': mae.item(), 'corr': corr.item()}
+    output = {'rmse': rmse.item(), 'mae': mae.item(), 'corr': corr}
     return output
 
 
@@ -76,25 +77,5 @@ def spearman_correlation(x, y):
         type: torch.Tensor
 
     """
-    x_rank = _get_ranks(x)
-    y_rank = _get_ranks(y)
-    n = x.size(0)
-    numerator = 6 * torch.sum((x_rank - y_rank).pow(2))
-    denominator = n * (n ** 2 - 1.0)
-    return 1.0 - (numerator / denominator)
-
-
-def _get_ranks(x):
-    """Computes ranking of elements in tensor
-
-    Args:
-        x (torch.Tensor)
-
-    Returns:
-        type: torch.Tensor
-
-    """
-    sorted_indices = x.argsort()
-    ranks = torch.zeros_like(sorted_indices)
-    ranks[sorted_indices] = torch.arange(len(x)).to(x.device)
-    return ranks
+    corr = spearmanr(x.numpy(), y.numpy())
+    return corr
