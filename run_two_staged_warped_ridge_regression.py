@@ -54,7 +54,6 @@ def main(args, cfg):
                    dataset=dataset,
                    standard_dataset=standard_dataset,
                    prediction_3d=prediction_3d,
-                   prediction_3d_dest=prediction_3d_dest,
                    aggregate_fn=model.aggregate_fn,
                    output_dir=args['--o'])
         logging.info("Dumped plots")

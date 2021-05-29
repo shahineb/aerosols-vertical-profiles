@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import torch
 
-def plot_aggregate_2d_predictions(dataset, target_key, prediction_3d, aggregate_fn):
+def plot_aggregate_2d_predictions(dataset, target_key, prediction_3d, aggregate_fn, h_std=None):
     """Plots aggregation of 3D+t prediction, 2D+t aggregate targets used for training and difference
 
     Args:
@@ -21,6 +21,9 @@ def plot_aggregate_2d_predictions(dataset, target_key, prediction_3d, aggregate_
     
     aggregate_prediction_2d = aggregate_fn(prediction_3d_grid.unsqueeze(-1)).squeeze()
     aggregate_prediction_2d = aggregate_prediction_2d.reshape(n_row, prediction_3d.size(1), prediction_3d.size(2))
+    
+    if h_std:
+        aggregate_prediction_2d = torch.tensor(h_std) * aggregate_prediction_2d
 
     fig, ax = plt.subplots(n_row, 3, figsize=(5 * n_row, 5 * n_row))
     cmap = 'magma'

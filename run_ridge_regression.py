@@ -46,29 +46,23 @@ def main(args, cfg):
         # destandardise 3d prediction
         prediction_3d_dest = target_std * (prediction_3d + target_mean) / h_std
         
-    # Add 2D covariates if specified
-#     if args['--2d']:
-#         ...
-        
     # Dump scores in output dir
-    dump_scores(prediction_3d=prediction_3d,
-                prediction_3d_dest=prediction_3d_dest,
+    dump_scores(prediction_3d=prediction_3d_dest,
                 groundtruth_3d=gt_grid,
                 targets_2d=z_grid,
-                h_std=h_std,
                 aggregate_fn=model.aggregate_fn,
-                output_dir=args['--o'])
+                output_dir=args['--o'],
+                h_std=h_std)
 
     # Dump plots in output dir
     if args['--plot']: 
         dump_plots(cfg=cfg,
                    dataset=dataset,
                    standard_dataset=standard_dataset, 
-                   prediction_3d=prediction_3d,
-                   prediction_3d_dest=prediction_3d_dest,
-#                    h_std=h_std,
+                   prediction_3d=prediction_3d_dest,
                    aggregate_fn=model.aggregate_fn,
-                   output_dir=args['--o'])
+                   output_dir=args['--o'],
+                   h_std=h_std)
         logging.info("Dumped plots")
 
 
@@ -118,37 +112,24 @@ def make_model(cfg, dataset, h):
                                      aggregate_fn=trpz,
                                      fit_intercept=cfg['model']['fit_intercept'])
     return model
-
-# def predict(model, x, dataset, cfg, gt_grid):
-#     h_std = torch.tensor(dataset.h.std().values
-#     target_mean = torch.tensor(dataset[cfg['dataset']['target']].mean().values)
-#     target_std = torch.tensor(dataset[cfg['dataset']['target']].std().values)
-
-#     with torch.no_grad():
-#         prediction = model(x)
-#         print(f'pred max before destandard is {torch.max(prediction)}')
-#         prediction_3d = prediction.reshape(*gt_grid.shape)
-#         prediction_3d_dest = prediction_3d / h_std
-#         print(f'pred max after destandard is {torch.max(prediction_3d_dest)}')
-#         print(f'max of ground truth is {torch.max(gt)}')
-
-
-def dump_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, h_std, aggregate_fn, output_dir):
-    scores = metrics.compute_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, h_std, aggregate_fn)
+    
+def dump_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn, output_dir, h_std=None):
+    scores = metrics.compute_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn, h_std)
     dump_path = os.path.join(output_dir, 'scores.metrics')
     with open(dump_path, 'w') as f:
         yaml.dump(scores, f)
     logging.info(f"Dumped scores at {dump_path}")
 
 
-def dump_plots(cfg, dataset, standard_dataset, prediction_3d, prediction_3d_dest, aggregate_fn, output_dir):
+
+def dump_plots(cfg, dataset, standard_dataset, prediction_3d, aggregate_fn, output_dir, h_std):
     # First plot - aggregate 2D prediction
     dump_path = os.path.join(output_dir, 'aggregate_2d_prediction.png')
-    _ = visualization.plot_aggregate_2d_predictions(dataset=standard_dataset,
+    _ = visualization.plot_aggregate_2d_predictions(dataset=dataset,
                                                     target_key=cfg['dataset']['target'],
                                                     prediction_3d=prediction_3d,
-#                                                     h_std=h_std,
-                                                    aggregate_fn=aggregate_fn)
+                                                    aggregate_fn=aggregate_fn,
+                                                    h_std=h_std)
     plt.savefig(dump_path)
     plt.close()
 
@@ -167,7 +148,7 @@ def dump_plots(cfg, dataset, standard_dataset, prediction_3d, prediction_3d_dest
                                                      lat_idx=cfg['evaluation']['slice_latitude_idx'],
                                                      time_idx=cfg['evaluation']['slice_time_idx'],
                                                      groundtruth_key=cfg['dataset']['groundtruth'],
-                                                     prediction_3d=prediction_3d_dest)
+                                                     prediction_3d=prediction_3d)
     plt.savefig(dump_path)
     plt.close()
 
