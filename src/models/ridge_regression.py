@@ -258,7 +258,7 @@ class TwoStagedTransformedAggregateRidgeRegression(nn.Module):
             output = output + self.bias_3d
         return self.transform(output)
 
-    def compute_loss(self, prediction_3d, bags_covariates, aggregate_targets):
+    def compute_loss(self, aggregate_prediction_2d, bags_covariates, aggregate_targets):
         """Compute mean square error between aggregate prediction and aggregate
         targets using two-staged regression
 
@@ -280,9 +280,6 @@ class TwoStagedTransformedAggregateRidgeRegression(nn.Module):
         # Compute matrix inverse with matrix-vector multiplication trick
         upsilon = gpytorch.inv_matmul(Q_2d, bags_covariates.t())
         y_upsilon = bags_covariates @ upsilon
-
-        # Aggregate 3D prediction
-        aggregate_prediction_2d = self.aggregate_prediction(prediction_3d.unsqueeze(-1)).squeeze()
 
         # Compute and return mean square error
         difference = aggregate_targets - y_upsilon @ aggregate_prediction_2d
