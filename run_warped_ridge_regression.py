@@ -7,6 +7,7 @@ Options:
   --cfg=<path_to_config>           Path to YAML configuration file to use.
   --o=<output_dir>                 Output directory.
   --plot                           Outputs scatter plots.
+  --device=<device_index>          Index of GPU to use [default: 0].
 """
 import os
 import yaml
@@ -24,13 +25,13 @@ def main(args, cfg):
     # Create dataset
     logging.info("Loading dataset")
     dataset, standard_dataset, x_by_bag, x, z_grid, z_grid_std, z, gt_grid, gt, h_grid, h = make_datasets(cfg=cfg)
-   
+
     # Instantiate model
-    model = make_model(cfg=cfg, dataset=dataset, h=h)
+    model = make_model(cfg=cfg, h=h)
     logging.info(f"{model}")
 
     # Fit model
-    model = fit(cfg=cfg, model=model, x=x, x_by_bag=x_by_bag, z=z, z_grid=z_grid)
+    model = fit(cfg=cfg, model=model, x=x, x_by_bag=x_by_bag, z=z, z_grid=z_grid, device_idx=args['--device'])
     logging.info("Fitted model")
 
     # Run prediction
@@ -82,16 +83,13 @@ def make_datasets(cfg):
     z = z_grid_std.flatten()
     gt = gt_grid.flatten()
     h = h_grid.reshape(-1, x_grid.size(-2))
-    
+
     return dataset, standard_dataset, x_by_bag, x, z_grid, z_grid_std, z, gt_grid, gt, h_grid, h
 
 
-def make_model(cfg, dataset, h): 
-    target_variable_key = cfg['dataset']['target']
-    target_mean, target_std = torch.tensor(dataset[target_variable_key].mean().values), torch.tensor(dataset[target_variable_key].std().values)
-    
+def make_model(cfg, h):
     # Define an aggregation operator over the entire grid used for evaluation
-    def trpz(grid):        
+    def trpz(grid):
         int_grid = -torch.trapz(y=grid, x=h.unsqueeze(-1), dim=-2)
         return int_grid
 
@@ -113,19 +111,28 @@ def make_model(cfg, dataset, h):
     model = TransformedAggregateRidgeRegression(alpha=cfg['model']['alpha'],
                                                 ndim=len(cfg['dataset']['3d_covariates']) + 4,
                                                 aggregate_fn=trpz,
+                                                aggregation_support=h.unsqueeze(-1),
                                                 transform=transform,
                                                 fit_intercept=cfg['model']['fit_intercept'])
     return model
 
 
-def fit(cfg, model, x, x_by_bag, z, z_grid):
+def fit(cfg, model, x, x_by_bag, z, z_grid, device_idx):
+    # Transfer on device
+    device = torch.device(f"cuda:{device_idx}") if torch.cuda.is_available() else torch.device("cpu")
+    x_by_bag = x_by_bag.to(device)
+    x = x.to(device)
+    z = z.to(device)
+    z_grid = z_grid.to(device)
+    model = model.to(device)
+
     # Define optimizer and exact loglikelihood module
     optimizer = torch.optim.Adam(params=model.parameters(), lr=cfg['training']['lr'])
 
     # Initialize progress bar
     n_epochs = cfg['training']['n_epochs']
     bar = Bar("Epoch", max=n_epochs)
-    
+
     z_mean = z_grid.mean()
     z_std = z_grid.std()
     for epoch in range(n_epochs):
@@ -150,7 +157,7 @@ def fit(cfg, model, x, x_by_bag, z, z_grid):
         bar.suffix = f"Loss {loss.item()}"
         bar.next()
 
-    return model
+    return model.cpu()
 
 
 def dump_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn, output_dir):

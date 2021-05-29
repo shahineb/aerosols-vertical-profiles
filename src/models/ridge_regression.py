@@ -80,10 +80,11 @@ class TransformedAggregateRidgeRegression(nn.Module):
         fit_intercept (bool): if True, pads inputs with constant offset
 
     """
-    def __init__(self, alpha, transform, aggregate_fn, ndim, fit_intercept=False):
+    def __init__(self, alpha, transform, aggregation_support, aggregate_fn, ndim, fit_intercept=False):
         super().__init__()
         self.alpha = alpha
         self.transform = transform
+        self.aggregation_support = aggregation_support
         self.aggregate_fn = aggregate_fn
         self.fit_intercept = fit_intercept
         self.ndim = ndim
@@ -117,7 +118,7 @@ class TransformedAggregateRidgeRegression(nn.Module):
             type: torch.Tensor
 
         """
-        aggregate_prediction = self.aggregate_fn(prediction)
+        aggregate_prediction = -torch.trapz(y=prediction, x=self.aggregation_support, dim=-2)
         return aggregate_prediction
 
     def regularization_term(self):
@@ -297,7 +298,7 @@ class TwoStagedTransformedAggregateRidgeRegression(nn.Module):
             type: torch.Tensor
 
         """
-        aggregate_prediction = self.aggregate_fn(prediction)
+        aggregate_prediction = -torch.trapz(y=prediction, x=self.aggregation_support, dim=-2)
         return aggregate_prediction
 
     def regularization_term(self):

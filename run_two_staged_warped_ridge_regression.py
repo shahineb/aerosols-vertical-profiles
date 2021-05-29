@@ -7,6 +7,7 @@ Options:
   --cfg=<path_to_config>           Path to YAML configuration file to use.
   --o=<output_dir>                 Output directory.
   --plot                           Outputs scatter plots.
+  --device=<device_index>          Index of GPU to use [default: 0].
 """
 import os
 import yaml
@@ -30,15 +31,14 @@ def main(args, cfg):
     logging.info(f"{model}")
 
     # Fit model
-    model = fit(cfg, model, x, x_by_bag, y, z_grid, z)
+    model = fit(cfg, model, x, x_by_bag, y, z_grid, z, device_idx=args['--device'])
     logging.info("Fitted model")
 
     # Run prediction
     with torch.no_grad():
         prediction = model(x)
         prediction_3d = prediction.reshape(*gt_grid.shape)
-        prediction_3d_dest = prediction_3d
-    
+
     # Dump scores in output dir
     dump_scores(prediction_3d=prediction_3d,
                 groundtruth_3d=gt_grid,
@@ -93,8 +93,8 @@ def make_model(cfg, h):
     def trpz(grid):
         int_grid = -torch.trapz(y=grid, x=h.unsqueeze(-1), dim=-2)
         return int_grid
-    
-     # Define warping transformation
+
+    # Define warping transformation
     if cfg['model']['transform'] == 'linear':
         transform = lambda x: x
     elif cfg['model']['transform'] == 'softplus':
@@ -110,16 +110,26 @@ def make_model(cfg, h):
 
     # Instantiate model
     model = TwoStagedTransformedAggregateRidgeRegression(alpha_2d=cfg['model']['alpha_2d'],
-                                                alpha_3d=cfg['model']['alpha_3d'],
-                                                ndim=len(cfg['dataset']['3d_covariates']) + 4,
-                                                aggregate_fn=trpz,
-                                                transform=transform,
-                                                fit_intercept_2d=cfg['model']['fit_intercept_2d'],
-                                                fit_intercept_3d=cfg['model']['fit_intercept_3d'])
+                                                         alpha_3d=cfg['model']['alpha_3d'],
+                                                         ndim=len(cfg['dataset']['3d_covariates']) + 4,
+                                                         aggregate_fn=trpz,
+                                                         aggregation_support=h.unsqueeze(-1),
+                                                         transform=transform,
+                                                         fit_intercept_2d=cfg['model']['fit_intercept_2d'],
+                                                         fit_intercept_3d=cfg['model']['fit_intercept_3d'])
     return model
 
 
-def fit(cfg, model, x, x_by_bag, y, z_grid, z):
+def fit(cfg, model, x, x_by_bag, y, z_grid, z, device_idx):
+    # Transfer on device
+    device = torch.device(f"cuda:{device_idx}") if torch.cuda.is_available() else torch.device("cpu")
+    x_by_bag = x_by_bag.to(device)
+    x = x.to(device)
+    y = y.to(device)
+    z = z.to(device)
+    z_grid = z_grid.to(device)
+    model = model.to(device)
+
     # Define optimizer and exact loglikelihood module
     optimizer = torch.optim.Adam(params=model.parameters(), lr=cfg['training']['lr'])
 
@@ -151,9 +161,9 @@ def fit(cfg, model, x, x_by_bag, y, z_grid, z):
         bar.suffix = f"Loss {loss.item()}"
         bar.next()
 
-    return model
-    
-    
+    return model.cpu()
+
+
 def dump_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn, output_dir):
     scores = metrics.compute_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn)
     dump_path = os.path.join(output_dir, 'scores.metrics')
