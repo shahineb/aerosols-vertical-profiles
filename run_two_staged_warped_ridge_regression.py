@@ -38,15 +38,13 @@ def main(args, cfg):
         prediction = model(x)
         prediction_3d = prediction.reshape(*gt_grid.shape)
         prediction_3d_dest = prediction_3d
-
+    
     # Dump scores in output dir
-#     dump_scores(prediction_3d=prediction_3d,
-#                 prediction_3d_dest=prediction_3d_dest,
-#                 groundtruth_3d=gt_grid,
-#                 targets_2d=z_grid,
-#                 h_std=h_std,
-#                 aggregate_fn=model.aggregate_fn,
-#                 output_dir=args['--o'])
+    dump_scores(prediction_3d=prediction_3d,
+                groundtruth_3d=gt_grid,
+                targets_2d=z_grid,
+                aggregate_fn=model.aggregate_fn,
+                output_dir=args['--o'])
 
     # Dump plots in output dir
     if args['--plot']:
@@ -154,10 +152,10 @@ def fit(cfg, model, x, x_by_bag, y, z_grid, z):
         bar.next()
 
     return model
-
-
-def dump_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, h_std, aggregate_fn, output_dir):
-    scores = metrics.compute_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, h_std, aggregate_fn)
+    
+    
+def dump_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn, output_dir):
+    scores = metrics.compute_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn)
     dump_path = os.path.join(output_dir, 'scores.metrics')
     with open(dump_path, 'w') as f:
         yaml.dump(scores, f)
@@ -167,7 +165,7 @@ def dump_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, h
 def dump_plots(cfg, dataset, standard_dataset, prediction_3d, aggregate_fn, output_dir):
     # First plot - aggregate 2D prediction
     dump_path = os.path.join(output_dir, 'aggregate_2d_prediction.png')
-    _ = visualization.plot_aggregate_2d_predictions(dataset=standard_dataset,
+    _ = visualization.plot_aggregate_2d_predictions(dataset=dataset,
                                                     target_key=cfg['dataset']['target'],
                                                     prediction_3d=prediction_3d,
                                                     aggregate_fn=aggregate_fn)

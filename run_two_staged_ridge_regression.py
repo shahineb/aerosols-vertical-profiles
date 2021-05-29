@@ -1,7 +1,7 @@
 """
-Description : Runs ridge regression experiment
+Description : Runs two staged ridge regression experiment
 
-Usage: run_ridge_experiment.py  [options] --cfg=<path_to_config> --o=<output_dir>
+Usage: run_two_staged_ridge_experiment.py  [options] --cfg=<path_to_config> --o=<output_dir>
 
 Options:
   --cfg=<path_to_config>           Path to YAML configuration file to use.
@@ -22,10 +22,10 @@ from src.evaluation import metrics, visualization
 def main(args, cfg):
     # Create dataset
     logging.info("Loading dataset")
-    dataset, standard_dataset, h, h_grid, x_by_bag, x, y_grid, y, z_grid, z_grid_std, z, gt_grid, gt = make_datasets(cfg=cfg)
+    dataset, standard_dataset, x_by_bag, x, y_grid, y, z_grid, z, gt_grid, gt, h, h_std = make_datasets(cfg=cfg)
 
     # Instantiate model
-    model = make_model(cfg=cfg, h=h)
+    model = make_model(cfg=cfg, h=h_std)
     logging.info(f"{model}")
 
     # Fit model
@@ -33,23 +33,26 @@ def main(args, cfg):
     logging.info("Fitted model")
 
     # Get factors for destandardisation
-    h_std = dataset.h.std().values
     target_mean = torch.tensor(dataset[cfg['dataset']['target']].mean().values)
     target_std = torch.tensor(dataset[cfg['dataset']['target']].std().values)
 
     # Run prediction
     with torch.no_grad():
         prediction = model(x)
-        prediction_3d = prediction.reshape(*gt_grid.shape)
-        prediction_3d_dest = target_std * (prediction_3d + target_mean) / h_std
-
+        prediction_3d_std = prediction.reshape(*gt_grid.shape)
+        prediction_3d = target_std * (prediction_3d_std + target_mean) / h.std()
+    
+    # Define aggregation wrt height -- non standard height!
+    def trpz(grid):
+        int_grid = -torch.trapz(y=grid, x=h.unsqueeze(-1), dim=-2)
+        return int_grid
+    
     # Dump scores in output dir
     dump_scores(prediction_3d=prediction_3d,
-                prediction_3d_dest=prediction_3d_dest,
                 groundtruth_3d=gt_grid,
                 targets_2d=z_grid,
                 h_std=h_std,
-                aggregate_fn=model.aggregate_fn,
+                aggregate_fn=trpz,
                 output_dir=args['--o'])
 
     # Dump plots in output dir
@@ -58,8 +61,7 @@ def main(args, cfg):
                    dataset=dataset,
                    standard_dataset=standard_dataset,
                    prediction_3d=prediction_3d,
-                   prediction_3d_dest=prediction_3d_dest,
-                   aggregate_fn=model.aggregate_fn,
+                   aggregate_fn=trpz,
                    output_dir=args['--o'])
         logging.info("Dumped plots")
 
@@ -78,23 +80,25 @@ def make_datasets(cfg):
     # Compute standardized versions
     standard_dataset = preproc.standardize(dataset)
 
+    
     # Convert into pytorch tensors
-    h_grid = preproc.make_3d_groundtruth_tensor(dataset=standard_dataset, groundtruth_variable_key='h')
     x_grid = preproc.make_3d_covariates_tensors(dataset=standard_dataset, variables_keys=cfg['dataset']['3d_covariates'])
     y_grid = preproc.make_2d_covariates_tensors(dataset=standard_dataset, variables_keys=cfg['dataset']['2d_covariates'])
     z_grid_std = preproc.make_2d_target_tensor(dataset=standard_dataset, target_variable_key=cfg['dataset']['target'])
     z_grid = preproc.make_2d_target_tensor(dataset=dataset, target_variable_key=cfg['dataset']['target'])
     gt_grid = preproc.make_3d_groundtruth_tensor(dataset=dataset, groundtruth_variable_key=cfg['dataset']['groundtruth'])
+    h_grid = preproc.make_3d_groundtruth_tensor(dataset=dataset, groundtruth_variable_key='h')
+    h_grid_std = preproc.make_3d_groundtruth_tensor(dataset=standard_dataset, groundtruth_variable_key='h')
 
     # Reshape tensors
-    h = h_grid.reshape(-1, x_grid.size(-2))
     x_by_bag = x_grid.reshape(-1, x_grid.size(-2), x_grid.size(-1))
     x = x_by_bag.reshape(-1, x_grid.size(-1))
     y = y_grid.reshape(-1, y_grid.size(-1))
     z = z_grid_std.flatten()
     gt = gt_grid.flatten()
-    return dataset, standard_dataset, h, h_grid, x_by_bag, x, y_grid, y, z_grid, z_grid_std, z, gt_grid, gt
-
+    h = h_grid.reshape(-1, x_grid.size(-2))
+    h_std = h_grid_std.reshape(-1, x_grid.size(-2))
+    return dataset, standard_dataset, x_by_bag, x, y_grid, y, z_grid, z, gt_grid, gt, h, h_std
 
 def make_model(cfg, h):
     def trpz(grid):
@@ -110,21 +114,20 @@ def make_model(cfg, h):
     return model
 
 
-def dump_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, h_std, aggregate_fn, output_dir):
-    scores = metrics.compute_scores(prediction_3d, prediction_3d_dest, groundtruth_3d, targets_2d, h_std, aggregate_fn)
+def dump_scores(prediction_3d, groundtruth_3d, targets_2d, h_std, aggregate_fn, output_dir):
+    scores = metrics.compute_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn)
     dump_path = os.path.join(output_dir, 'scores.metrics')
     with open(dump_path, 'w') as f:
         yaml.dump(scores, f)
     logging.info(f"Dumped scores at {dump_path}")
 
 
-def dump_plots(cfg, dataset, standard_dataset, prediction_3d, prediction_3d_dest, aggregate_fn, output_dir):
+def dump_plots(cfg, dataset, standard_dataset, prediction_3d, aggregate_fn, output_dir):
     # First plot - aggregate 2D prediction
     dump_path = os.path.join(output_dir, 'aggregate_2d_prediction.png')
-    _ = visualization.plot_aggregate_2d_predictions(dataset=standard_dataset,
+    _ = visualization.plot_aggregate_2d_predictions(dataset=dataset,
                                                     target_key=cfg['dataset']['target'],
                                                     prediction_3d=prediction_3d,
-#                                                     h_std=h_std,
                                                     aggregate_fn=aggregate_fn)
     plt.savefig(dump_path)
     plt.close()
@@ -144,7 +147,7 @@ def dump_plots(cfg, dataset, standard_dataset, prediction_3d, prediction_3d_dest
                                                      lat_idx=cfg['evaluation']['slice_latitude_idx'],
                                                      time_idx=cfg['evaluation']['slice_time_idx'],
                                                      groundtruth_key=cfg['dataset']['groundtruth'],
-                                                     prediction_3d=prediction_3d_dest)
+                                                     prediction_3d=prediction_3d)
     plt.savefig(dump_path)
     plt.close()
 
