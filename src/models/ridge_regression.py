@@ -70,7 +70,7 @@ class AggregateRidgeRegression(nn.Module):
 
 
 class TransformedAggregateRidgeRegression(nn.Module):
-    """Short summary.
+    """Aggregate ridge regression with warping transformation
 
     Args:
         alpha (float): regularization weight, greater = stronger L2 penalization
@@ -212,3 +212,98 @@ class TwoStageRidgeRegression2D(nn.Module):
         if self.fit_intercept_3d:
             x = self.pad_input(x)
         return x @ self.beta
+
+
+class TwoStagedTransformedAggregateRidgeRegression(nn.Module):
+    """Two staged aggregate ridge regression with warping transformation
+
+    Args:
+        alpha (float): regularization weight, greater = stronger L2 penalization
+        transform (callable): output transformation to apply to prediction
+        aggregate_fn (callable): aggregation operator
+        ndim (int): dimensionality of inputs
+        fit_intercept (bool): if True, pads inputs with constant offset
+
+    """
+    def __init__(self, alpha_2d, alpha_3d, transform, aggregate_fn, ndim, fit_intercept_2d=False, fit_intercept_3d=False):
+        super().__init__()
+        self.alpha_2d = alpha_2d
+        self.alpha_3d = alpha_3d
+
+        self.fit_intercept_2d = fit_intercept_2d
+        self.fit_intercept_3d = fit_intercept_3d
+
+        self.ndim = ndim
+
+        if self.fit_intercept_3d:
+            self.bias_3d = nn.Parameter(torch.zeros(1))
+        self.beta = nn.Parameter(0.000000001 * torch.randn(self.ndim))
+
+        self.transform = transform
+        self.aggregate_fn = aggregate_fn
+
+    def forward(self, x):
+        """Runs prediction
+
+        Args:
+            x (torch.Tensor): (n_samples, covariate_dimenionality)
+                samples must not need to be organized by bags
+
+        Returns:
+            type: torch.Tensor
+
+        """
+        output = x @ self.beta
+        if self.fit_intercept_3d:
+            output = output + self.bias_3d
+        return self.transform(output)
+
+    def compute_loss(self, aggregate_prediction_2d, bags_covariates, aggregate_targets):
+        """Compute mean square error between aggregate prediction and aggregate
+        targets using two-staged regression
+
+        Args:
+            prediction_3d (torch.Tensor): (n_bags, lev)
+            bags_covariates (torch.Tensor): (n_bags, d_2d)
+            aggregate_targets (torch.Tensor): (n_bags,)
+
+        Returns:
+            type: torch.Tensor
+
+        """
+        # Extract dimensions
+        n_bags, d_2d = bags_covariates.size(0), bags_covariates.size(1)
+
+        # Compute regularized matrix to inverse
+        Q_2d = (bags_covariates.t() @ bags_covariates + n_bags * self.alpha_2d * torch.eye(d_2d))
+
+        # Compute matrix inverse with matrix-vector multiplication trick
+        upsilon = gpytorch.inv_matmul(Q_2d, bags_covariates.t())
+        y_upsilon = bags_covariates @ upsilon
+
+        # Compute and return mean square error
+        difference = aggregate_targets - y_upsilon @ aggregate_prediction_2d
+        mean_squared_error = torch.square(difference).mean()
+        return mean_squared_error
+
+    def aggregate_prediction(self, prediction):
+        """Computes aggregation of individuals output prediction
+
+        Args:
+            prediction (torch.Tensor): (n_bag, bags_size) tensor output of forward
+
+        Returns:
+            type: torch.Tensor
+
+        """
+        aggregate_prediction = self.aggregate_fn(prediction)
+        return aggregate_prediction
+
+    def regularization_term(self):
+        """Square L2 norm of beta
+
+        Returns:
+            type: torch.Tensor
+
+        """
+        return self.alpha * torch.dot(self.beta, self.beta)
