@@ -1,0 +1,91 @@
+################################################################################
+#   CONFIGURATIONS FOR VERTICAL DISAGGREGATION EXPERIMENT WITH TWO STAGED WARPED AGGREGATE RIDGE REGRESSION
+################################################################################
+
+# DATASET
+dataset:
+  # Path to main model data .nc file
+  path: data/sulfates/final_dataset_lat_321_lon_321_t_6_01_2007.nc
+
+  # Altitude index below which data is dropped
+  trimming_altitude_idx: 20
+
+  # Variable for which a logdomain version is created names log_<variable_name> - does not override original variable
+  to_log_domain:
+    - rh
+    - so2
+    - co
+    - dmssmass
+    - so2cmass
+    - so2smass
+    - lwp
+
+  # Variables to use as 2D covariates
+  2d_covariates:
+    - tlml
+    - pblh
+    - log_dmssmass
+    - log_so2cmass
+    - log_so2smass
+    - log_lwp
+
+
+  # Variables to use as 3D covariates
+  3d_covariates:
+    - t
+    - w
+    - co
+    - rh
+    - so2
+    - ql
+
+  # Variable to use as 2D aggregate target
+  target: so4cmass
+
+  # Variable corresponding to unobserved groundtruth 3D field
+  groundtruth: so4_mass_conc
+
+
+# MODEL SPECIFICATIONS
+model:
+  # L2 regularization weight for stage 1
+  alpha_2d: 0.01
+
+  # L2 regularization weight for stage 2
+  alpha_3d: 0.01
+
+  # Whether to use bias or not in stage 1
+  fit_intercept_2d: False
+
+  # Whether to use bias or not in stage 1
+  fit_intercept_3d: False
+  
+  # Warping transformation
+  transform: 'smooth_abs'
+
+
+# TRAINING
+training:
+  # Number of training epochs
+  n_epochs: 500
+
+  # Learning rate
+  lr: 0.000001
+
+
+# EVALUATION
+evaluation:
+  # Latitude index of slice to plot
+  slice_latitude_idx: 100
+
+  # Time index of slice to plot
+  slice_time_idx: 0
+
+  # List of variables slices to plot
+  slices_covariates:
+    - t
+    - w
+    - rh
+    - so2
+    - so4
+    - ql

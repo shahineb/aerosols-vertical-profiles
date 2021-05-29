@@ -1,4 +1,4 @@
-from .ridge_regression import AggregateRidgeRegression, TwoStageRidgeRegression2D, TransformedAggregateRidgeRegression
+from .ridge_regression import AggregateRidgeRegression, TwoStageRidgeRegression2D, TransformedAggregateRidgeRegression, TwoStagedTransformedAggregateRidgeRegression
 
 __all__ = ['AggregateRidgeRegression', 'TransformedAggregateRidgeRegression',
-           'TwoStageRidgeRegression2D']
+           'TwoStageRidgeRegression2D', 'TwoStagedTransformedAggregateRidgeRegression']

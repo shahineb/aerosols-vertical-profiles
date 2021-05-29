@@ -306,4 +306,4 @@ class TwoStagedTransformedAggregateRidgeRegression(nn.Module):
             type: torch.Tensor
 
         """
-        return self.alpha * torch.dot(self.beta, self.beta)
+        return self.alpha_3d * torch.dot(self.beta, self.beta)

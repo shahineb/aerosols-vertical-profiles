@@ -15,8 +15,9 @@ from docopt import docopt
 import torch
 import matplotlib.pyplot as plt
 import src.preprocessing as preproc
-from src.models import TwoStageTransformedRidgeRegression
+from src.models import TwoStagedTransformedAggregateRidgeRegression
 from src.evaluation import metrics, visualization
+from progress.bar import Bar
 
 
 def main(args, cfg):
@@ -111,7 +112,7 @@ def make_model(cfg, h):
         raise ValueError("Unknown transform")
 
     # Instantiate model
-    model = TwoStageTransformedRidgeRegression(alpha_2d=cfg['model']['alpha_2d'],
+    model = TwoStagedTransformedAggregateRidgeRegression(alpha_2d=cfg['model']['alpha_2d'],
                                                 alpha_3d=cfg['model']['alpha_3d'],
                                                 ndim=len(cfg['dataset']['3d_covariates']) + 4,
                                                 aggregate_fn=trpz,
