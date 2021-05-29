@@ -17,52 +17,51 @@ import matplotlib.pyplot as plt
 import src.preprocessing as preproc
 from src.models import AggregateRidgeRegression
 from src.evaluation import metrics, visualization
-import numpy as np
 
 
 def main(args, cfg):
     # Create dataset
     logging.info("Loading dataset")
-    dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt, h_grid, h = make_datasets(cfg=cfg)
+    dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt, h, h_std = make_datasets(cfg=cfg)
 
     # Instantiate model
-    model = make_model(cfg=cfg, dataset=standard_dataset, h=h)
+    model = make_model(cfg=cfg, h=h_std)
     logging.info(f"{model}")
 
     # Fit model
     model.fit(x_by_bag, z)
     logging.info("Fitted model")
-    
-    # Get factors for destandardisation
-    h_std = dataset.h.std().values
+
+    # Get factors for destandardisation
     target_mean = torch.tensor(dataset[cfg['dataset']['target']].mean().values)
     target_std = torch.tensor(dataset[cfg['dataset']['target']].std().values)
-    
+
     # Run prediction
     with torch.no_grad():
         prediction = model(x)
-        prediction_3d = prediction.reshape(*gt_grid.shape)
-        
-        # destandardise 3d prediction
-        prediction_3d_dest = target_std * (prediction_3d + target_mean) / h_std
-        
+        prediction_3d_std = prediction.reshape(*gt_grid.shape)
+        prediction_3d = target_std * (prediction_3d_std + target_mean) / h.std()
+
+    # Define aggregation wrt height -- non standard height!
+    def trpz(grid):
+        int_grid = -torch.trapz(y=grid, x=h.unsqueeze(-1), dim=-2)
+        return int_grid
+
     # Dump scores in output dir
-    dump_scores(prediction_3d=prediction_3d_dest,
+    dump_scores(prediction_3d=prediction_3d,
                 groundtruth_3d=gt_grid,
                 targets_2d=z_grid,
-                aggregate_fn=model.aggregate_fn,
-                output_dir=args['--o'],
-                h_std=h_std)
+                aggregate_fn=trpz,
+                output_dir=args['--o'])
 
     # Dump plots in output dir
-    if args['--plot']: 
+    if args['--plot']:
         dump_plots(cfg=cfg,
                    dataset=dataset,
-                   standard_dataset=standard_dataset, 
-                   prediction_3d=prediction_3d_dest,
-                   aggregate_fn=model.aggregate_fn,
-                   output_dir=args['--o'],
-                   h_std=h_std)
+                   standard_dataset=standard_dataset,
+                   prediction_3d=prediction_3d,
+                   aggregate_fn=trpz,
+                   output_dir=args['--o'])
         logging.info("Dumped plots")
 
 
@@ -85,7 +84,8 @@ def make_datasets(cfg):
     z_grid_std = preproc.make_2d_target_tensor(dataset=standard_dataset, target_variable_key=cfg['dataset']['target'])
     z_grid = preproc.make_2d_target_tensor(dataset=dataset, target_variable_key=cfg['dataset']['target'])
     gt_grid = preproc.make_3d_groundtruth_tensor(dataset=dataset, groundtruth_variable_key=cfg['dataset']['groundtruth'])
-    h_grid = preproc.make_3d_groundtruth_tensor(dataset=standard_dataset, groundtruth_variable_key='h')
+    h_grid = preproc.make_3d_groundtruth_tensor(dataset=dataset, groundtruth_variable_key='h')
+    h_grid_std = preproc.make_3d_groundtruth_tensor(dataset=standard_dataset, groundtruth_variable_key='h')
 
     # Reshape tensors
     x_by_bag = x_grid.reshape(-1, x_grid.size(-2), x_grid.size(-1))
@@ -93,17 +93,14 @@ def make_datasets(cfg):
     z = z_grid_std.flatten()
     gt = gt_grid.flatten()
     h = h_grid.reshape(-1, x_grid.size(-2))
-    
-    return dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt, h_grid, h
+    h_std = h_grid_std.reshape(-1, x_grid.size(-2))
+    return dataset, standard_dataset, x_by_bag, x, z_grid, z, gt_grid, gt, h, h_std
 
-def make_model(cfg, dataset, h):
+
+def make_model(cfg, h):
 
     def trpz(grid):
         # Create aggregation operator
-#         h = preproc.standardize(dataset.h[0, :, 0, 0].values)
-#         std_h_grid = torch.from_numpy(h)
-#         h_grid = torch.from_numpy(preproc.standardize(h)).float()
-
         int_grid = -torch.trapz(y=grid, x=h.unsqueeze(-1), dim=-2)
         return int_grid
 
@@ -112,24 +109,23 @@ def make_model(cfg, dataset, h):
                                      aggregate_fn=trpz,
                                      fit_intercept=cfg['model']['fit_intercept'])
     return model
-    
-def dump_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn, output_dir, h_std=None):
-    scores = metrics.compute_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn, h_std)
+
+
+def dump_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn, output_dir):
+    scores = metrics.compute_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn)
     dump_path = os.path.join(output_dir, 'scores.metrics')
     with open(dump_path, 'w') as f:
         yaml.dump(scores, f)
     logging.info(f"Dumped scores at {dump_path}")
 
 
-
-def dump_plots(cfg, dataset, standard_dataset, prediction_3d, aggregate_fn, output_dir, h_std):
+def dump_plots(cfg, dataset, standard_dataset, prediction_3d, aggregate_fn, output_dir):
     # First plot - aggregate 2D prediction
     dump_path = os.path.join(output_dir, 'aggregate_2d_prediction.png')
     _ = visualization.plot_aggregate_2d_predictions(dataset=dataset,
                                                     target_key=cfg['dataset']['target'],
                                                     prediction_3d=prediction_3d,
-                                                    aggregate_fn=aggregate_fn,
-                                                    h_std=h_std)
+                                                    aggregate_fn=aggregate_fn)
     plt.savefig(dump_path)
     plt.close()
 
