@@ -77,5 +77,5 @@ def spearman_correlation(x, y):
         type: torch.Tensor
 
     """
-    corr = spearmanr(x.numpy(), y.numpy()).correlation
+    corr = float(spearmanr(x.numpy(), y.numpy()).correlation)
     return corr
