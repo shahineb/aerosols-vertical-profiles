@@ -8,26 +8,26 @@ dataset:
   path: data/sulfates/final_dataset_lat_321_lon_321_t_6_01_2007.nc
 
   # Altitude index below which data is dropped
-  trimming_altitude_idx: 20
+  trimming_altitude_idx: 0
 
   # Variable for which a logdomain version is created names log_<variable_name> - does not override original variable
   to_log_domain:
     - rh
-    - so2
-    - co
-    - dmssmass
-    - so2cmass
-    - so2smass
-    - lwp
+    # - so2
+    # - co
+    # - dmssmass
+    # - so2cmass
+    # - so2smass
+    # - lwp
 
   # Variables to use as 2D covariates
   2d_covariates:
-#     - tlml
-#     - pblh
-#     - so4cmass
-#     - dmssmass
-    - so2cmass
-#     - so2smass
+    # - tlml
+    # - pblh
+    - so4cmass
+    # - dmssmass
+    # - so2cmass
+    # - so2smass
     - lwp
 
 
@@ -36,6 +36,7 @@ dataset:
     - t
     - w
     - so2
+    - rh
     - ql
 
   # Variable to use as 2D aggregate target
@@ -48,10 +49,10 @@ dataset:
 # MODEL SPECIFICATIONS
 model:
   # L2 regularization weight for stage 1
-  alpha_2d: 5
+  alpha_2d: 0.001
 
   # L2 regularization weight for stage 2
-  alpha_3d: 0.001
+  alpha_3d: 0.000025
 
   # Whether to use bias or not in stage 1
   fit_intercept_2d: True

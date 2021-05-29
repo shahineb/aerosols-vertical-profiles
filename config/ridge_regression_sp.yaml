@@ -8,7 +8,7 @@ dataset:
   path: data/sulfates/final_dataset_lat_321_lon_321_t_6_01_2007.nc
 
   # Altitude index below which data is dropped
-  trimming_altitude_idx: 20
+  trimming_altitude_idx: 0
 
   # Variable for which a logdomain version is created names log_<variable_name> - does not override original variable
   to_log_domain:
@@ -17,9 +17,8 @@ dataset:
   # Variables to use as 3D covariates
   3d_covariates:
     - t
-#     - w
-#     - co
-#     - rh
+    - w
+    - rh
     - so2
     - ql
 
@@ -33,7 +32,7 @@ dataset:
 # MODEL SPECIFICATIONS
 model:
   # L2 regularization weight
-  alpha: 0.001
+  alpha: 0.000025
 
   # Whether to use bias or not
   fit_intercept: True

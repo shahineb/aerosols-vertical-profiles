@@ -195,7 +195,8 @@ class TwoStageRidgeRegression2D(nn.Module):
 
         # Compute second regression stage
         Q_3d = (y_upsilon.t() @ y_upsilon + n_bags * self.alpha_3d * torch.eye(d_3d))
-        beta = gpytorch.inv_matmul(Q_3d, y_upsilon.t() @ aggregate_targets)
+        with gpytorch.settings.cholesky_jitter(1e-3):
+            beta = gpytorch.inv_matmul(Q_3d, y_upsilon.t() @ aggregate_targets)
         self.register_buffer('beta', beta)
 
     def forward(self, x):
