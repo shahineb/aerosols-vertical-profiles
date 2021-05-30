@@ -8,59 +8,40 @@ dataset:
   path: data/sulfates/final_dataset_lat_321_lon_321_t_6_01_2007.nc
 
   # Altitude index below which data is dropped
-  trimming_altitude_idx: 25
+  trimming_altitude_idx: 0
 
   # Variable for which a logdomain version is created names log_<variable_name> - does not override original variable
   to_log_domain:
-    - rh
-    - so2
-    - so4cmass
-    - so4_mass_conc
+    - t
 
   # Variables to use as 3D covariates
   3d_covariates:
     - t
     - w
-    - log_rh
-    - log_so2
+    - rh
+    - so2
+    - ql
 
   # Variable to use as 2D aggregate target
-  target: log_so4cmass
+  target: so4cmass
 
   # Variable corresponding to unobserved groundtruth 3D field
-  groundtruth: log_so4_mass_conc
-
-
+  groundtruth: so4_mass_conc
 
 
 # MODEL SPECIFICATIONS
 model:
   # L2 regularization weight
-  alpha: 0.1
+  alpha: 0.01
 
   # Whether to use bias or not
   fit_intercept: True
-
-  # Warping transformation - {'exp', 'smooth_abs', 'square', 'softplus', 'linear'}
-  transform: 'linear'
-
-
-
-
-# TRAINING
-training:
-  # Number of training epochs
-  n_epochs: 2000
-
-  # Learning rate
-  lr: 1
-
 
 
 # EVALUATION
 evaluation:
   # Latitude index of slice to plot
-  slice_latitude_idx: 50
+  slice_latitude_idx: 100
 
   # Time index of slice to plot
   slice_time_idx: 0
@@ -71,3 +52,5 @@ evaluation:
     - w
     - rh
     - so2
+    - so4
+    - ql
