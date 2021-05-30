@@ -84,13 +84,13 @@ class TransformedAggregateRidgeRegression(nn.Module):
         super().__init__()
         self.alpha = alpha
         self.transform = transform
-        self.aggregation_support = aggregation_support
         self.aggregate_fn = aggregate_fn
         self.fit_intercept = fit_intercept
         self.ndim = ndim
         if self.fit_intercept:
             self.bias = nn.Parameter(torch.zeros(1))
         self.beta = nn.Parameter(0.000000001 * torch.randn(self.ndim))
+        self.register_buffer('aggregation_support', aggregation_support)
 
     def forward(self, x):
         """Runs prediction
@@ -227,7 +227,7 @@ class TwoStagedTransformedAggregateRidgeRegression(nn.Module):
         fit_intercept (bool): if True, pads inputs with constant offset
 
     """
-    def __init__(self, alpha_2d, alpha_3d, transform, aggregate_fn, ndim, fit_intercept_2d=False, fit_intercept_3d=False):
+    def __init__(self, alpha_2d, alpha_3d, transform, aggregation_support, aggregate_fn, ndim, fit_intercept_2d=False, fit_intercept_3d=False):
         super().__init__()
         self.alpha_2d = alpha_2d
         self.alpha_3d = alpha_3d
@@ -243,6 +243,20 @@ class TwoStagedTransformedAggregateRidgeRegression(nn.Module):
 
         self.transform = transform
         self.aggregate_fn = aggregate_fn
+        self.register_buffer('aggregation_support', aggregation_support)
+
+    def pad_input(self, x):
+        """Pads x with 1 along last dimension
+
+        Args:
+            x (torch.Tensor)
+
+        Returns:
+            type: torch.Tensor
+
+        """
+        x = torch.cat([x, torch.ones(x.shape[:-1], device=x.device).unsqueeze(-1)], dim=-1)
+        return x
 
     def forward(self, x):
         """Runs prediction
@@ -273,11 +287,14 @@ class TwoStagedTransformedAggregateRidgeRegression(nn.Module):
             type: torch.Tensor
 
         """
+        if self.fit_intercept_2d:
+            bags_covariates = self.pad_input(bags_covariates)
+
         # Extract dimensions
         n_bags, d_2d = bags_covariates.size(0), bags_covariates.size(1)
 
         # Compute regularized matrix to inverse
-        Q_2d = (bags_covariates.t() @ bags_covariates + n_bags * self.alpha_2d * torch.eye(d_2d))
+        Q_2d = (bags_covariates.t() @ bags_covariates + n_bags * self.alpha_2d * torch.eye(d_2d, device=bags_covariates.device))
 
         # Compute matrix inverse with matrix-vector multiplication trick
         upsilon = gpytorch.inv_matmul(Q_2d, bags_covariates.t() @ aggregate_prediction_2d)

@@ -1,5 +1,5 @@
 import torch
-from scipy.stats import spearmanr
+from scipy.stats import pearsonr
 
 
 def compute_scores(prediction_3d, groundtruth_3d, targets_2d, aggregate_fn):
@@ -77,5 +77,7 @@ def spearman_correlation(x, y):
         type: torch.Tensor
 
     """
-    corr = float(spearmanr(x.numpy(), y.numpy()).correlation)
+    x_std = (x - x.mean()) / x.std()
+    y_std = (y - y.mean()) / y.std()
+    corr = float(pearsonr(x_std.numpy(), y_std.numpy())[0])
     return corr
