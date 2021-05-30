@@ -1,13 +1,14 @@
 """
 Description : Runs two staged warped ridge regression experiment
 
-Usage: run_two_staged_warped_ridge_experiment.py  [options] --cfg=<path_to_config> --o=<output_dir>
+Usage: run_warped_two_staged_ridge_experiment.py  [options] --cfg=<path_to_config> --o=<output_dir>
 
 Options:
   --cfg=<path_to_config>           Path to YAML configuration file to use.
   --o=<output_dir>                 Output directory.
   --plot                           Outputs scatter plots.
   --device=<device_index>          Index of GPU to use [default: 0].
+  --seed=<random_seed>             Random seed.
 """
 import os
 import yaml
@@ -27,6 +28,8 @@ def main(args, cfg):
     dataset, standard_dataset, h, h_grid, x_by_bag, x, y_grid, y, z_grid, z_grid_std, z, gt_grid, gt = make_datasets(cfg=cfg)
 
     # Instantiate model
+    if args['--seed']:
+        torch.random.manual_seed(int(args['--seed']))
     model = make_model(cfg=cfg, h=h)
     logging.info(f"{model}")
 
@@ -139,6 +142,7 @@ def fit(cfg, model, x, x_by_bag, y, z_grid, z, device_idx):
 
     z_mean = z_grid.mean()
     z_std = z_grid.std()
+
     for epoch in range(n_epochs):
         # Zero-out remaining gradients
         optimizer.zero_grad()
@@ -150,15 +154,16 @@ def fit(cfg, model, x, x_by_bag, y, z_grid, z, device_idx):
         aggregate_prediction_2d = (aggregate_prediction_2d - z_mean) / z_std
 
         # Compute loss
-        loss = model.compute_loss(aggregate_prediction_2d, y, z)
-        loss += model.regularization_term()
+        mse = model.compute_loss(aggregate_prediction_2d, y, z)
+        reg = model.regularization_term()
+        loss = mse + reg
 
         # Take gradient step
         loss.backward()
         optimizer.step()
 
         # Update progress bar
-        bar.suffix = f"Loss {loss.item()}"
+        bar.suffix = f"MSE {mse.item()} | Reg {reg.item()}"
         bar.next()
 
     return model.cpu()

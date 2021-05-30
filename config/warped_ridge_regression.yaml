@@ -5,7 +5,7 @@
 # DATASET
 dataset:
   # Path to main model data .nc file
-  path: data/sulfates/final_dataset_lat_321_lon_321_t_6_01_2007.nc
+  path: /data/ziz/not-backed-up/scratch/bouabid/sulfates/final_dataset_lat_321_lon_321_t_6_01_2007.nc
 
   # Altitude index below which data is dropped
   trimming_altitude_idx: 0
@@ -32,7 +32,7 @@ dataset:
 # MODEL SPECIFICATIONS
 model:
   # L2 regularization weight
-  alpha: 0.000025
+  alpha: 1000000000000
 
   # Whether to use bias or not
   fit_intercept: True
@@ -46,7 +46,7 @@ model:
 # TRAINING
 training:
   # Number of training epochs
-  n_epochs: 500
+  n_epochs: 1000
 
   # Learning rate
   lr: 0.0001
@@ -56,7 +56,7 @@ training:
 # EVALUATION
 evaluation:
   # Latitude index of slice to plot
-  slice_latitude_idx: 70
+  slice_latitude_idx: 100
 
   # Time index of slice to plot
   slice_time_idx: 0

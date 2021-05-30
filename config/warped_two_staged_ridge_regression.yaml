@@ -5,36 +5,25 @@
 # DATASET
 dataset:
   # Path to main model data .nc file
-  path: data/sulfates/final_dataset_lat_321_lon_321_t_6_01_2007.nc
+  path: /data/ziz/not-backed-up/scratch/bouabid/sulfates/final_dataset_lat_321_lon_321_t_6_01_2007.nc
 
   # Altitude index below which data is dropped
-  trimming_altitude_idx: 20
+  trimming_altitude_idx: 0
 
   # Variable for which a logdomain version is created names log_<variable_name> - does not override original variable
   to_log_domain:
-    - rh
-    - so2
-    - co
-    - dmssmass
-    - so2cmass
-    - so2smass
-    - lwp
+    - t
 
   # Variables to use as 2D covariates
   2d_covariates:
-    - tlml
-    - pblh
-    - log_dmssmass
-    - log_so2cmass
-    - log_so2smass
-    - log_lwp
+    - so4cmass
+    - lwp
 
 
   # Variables to use as 3D covariates
   3d_covariates:
     - t
     - w
-    - co
     - rh
     - so2
     - ql
@@ -52,25 +41,25 @@ model:
   alpha_2d: 0.01
 
   # L2 regularization weight for stage 2
-  alpha_3d: 0.01
+  alpha_3d: 100000000000
 
   # Whether to use bias or not in stage 1
-  fit_intercept_2d: False
+  fit_intercept_2d: True
 
   # Whether to use bias or not in stage 1
-  fit_intercept_3d: False
-  
+  fit_intercept_3d: True
+
   # Warping transformation
-  transform: 'smooth_abs'
+  transform: 'square'
 
 
 # TRAINING
 training:
   # Number of training epochs
-  n_epochs: 500
+  n_epochs: 4000
 
   # Learning rate
-  lr: 0.000001
+  lr: 0.0001
 
 
 # EVALUATION
