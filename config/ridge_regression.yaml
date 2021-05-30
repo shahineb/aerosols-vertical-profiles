@@ -32,7 +32,7 @@ dataset:
 # MODEL SPECIFICATIONS
 model:
   # L2 regularization weight
-  alpha: 0.01
+  alpha: 0.001
 
   # Whether to use bias or not
   fit_intercept: True

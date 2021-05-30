@@ -8,6 +8,7 @@ Options:
   --o=<output_dir>                 Output directory.
   --plot                           Outputs scatter plots.
   --device=<device_index>          Index of GPU to use [default: 0].
+  --seed=<random_seed>             Random seed.
 """
 import os
 import yaml
@@ -27,6 +28,8 @@ def main(args, cfg):
     dataset, standard_dataset, x_by_bag, x, z_grid, z_grid_std, z, gt_grid, gt, h_grid, h = make_datasets(cfg=cfg)
 
     # Instantiate model
+    if args['--seed']:
+        torch.random.manual_seed(int(args['--seed']))
     model = make_model(cfg=cfg, h=h)
     logging.info(f"{model}")
 
@@ -146,15 +149,16 @@ def fit(cfg, model, x, x_by_bag, z, z_grid, device_idx):
         aggregate_prediction_2d = (aggregate_prediction_2d - z_mean) / z_std
 
         # Compute loss
-        loss = torch.square(aggregate_prediction_2d - z).mean()
-        loss += model.regularization_term()
+        mse = torch.square(aggregate_prediction_2d - z).mean()
+        reg = model.regularization_term()
+        loss = mse + reg
 
         # Take gradient step
         loss.backward()
         optimizer.step()
 
         # Update progress bar
-        bar.suffix = f"Loss {loss.item()}"
+        bar.suffix = f"MSE {mse.item()} | Reg {reg.item()}"
         bar.next()
 
     return model.cpu()

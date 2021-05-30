@@ -89,7 +89,7 @@ class TransformedAggregateRidgeRegression(nn.Module):
         self.ndim = ndim
         if self.fit_intercept:
             self.bias = nn.Parameter(torch.zeros(1))
-        self.beta = nn.Parameter(0.000000001 * torch.randn(self.ndim))
+        self.beta = nn.Parameter(1e-6 * torch.randn(self.ndim))
         self.register_buffer('aggregation_support', aggregation_support)
 
     def forward(self, x):
@@ -239,7 +239,7 @@ class TwoStagedTransformedAggregateRidgeRegression(nn.Module):
 
         if self.fit_intercept_3d:
             self.bias_3d = nn.Parameter(torch.zeros(1))
-        self.beta = nn.Parameter(0.000000001 * torch.randn(self.ndim))
+        self.beta = nn.Parameter(1e-6 * torch.randn(self.ndim))
 
         self.transform = transform
         self.aggregate_fn = aggregate_fn

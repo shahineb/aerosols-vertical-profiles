@@ -38,10 +38,10 @@ dataset:
 # MODEL SPECIFICATIONS
 model:
   # L2 regularization weight for stage 1
-  alpha_2d: 0.001
+  alpha_2d: 0.01
 
   # L2 regularization weight for stage 2
-  alpha_3d: 0.00001
+  alpha_3d: 100000000000
 
   # Whether to use bias or not in stage 1
   fit_intercept_2d: True
@@ -56,7 +56,7 @@ model:
 # TRAINING
 training:
   # Number of training epochs
-  n_epochs: 1000
+  n_epochs: 4000
 
   # Learning rate
   lr: 0.0001
