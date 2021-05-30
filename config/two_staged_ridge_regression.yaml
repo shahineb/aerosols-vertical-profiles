@@ -13,21 +13,10 @@ dataset:
   # Variable for which a logdomain version is created names log_<variable_name> - does not override original variable
   to_log_domain:
     - rh
-    # - so2
-    # - co
-    # - dmssmass
-    # - so2cmass
-    # - so2smass
-    # - lwp
 
   # Variables to use as 2D covariates
   2d_covariates:
-    # - tlml
-    # - pblh
     - so4cmass
-    # - dmssmass
-    # - so2cmass
-    # - so2smass
     - lwp
 
 
@@ -52,7 +41,7 @@ model:
   alpha_2d: 0.001
 
   # L2 regularization weight for stage 2
-  alpha_3d: 0.000025
+  alpha_3d: 0.01
 
   # Whether to use bias or not in stage 1
   fit_intercept_2d: True
