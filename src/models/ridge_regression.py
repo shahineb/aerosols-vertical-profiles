@@ -84,13 +84,13 @@ class TransformedAggregateRidgeRegression(nn.Module):
         super().__init__()
         self.alpha = alpha
         self.transform = transform
-        self.aggregation_support = aggregation_support
         self.aggregate_fn = aggregate_fn
         self.fit_intercept = fit_intercept
         self.ndim = ndim
         if self.fit_intercept:
             self.bias = nn.Parameter(torch.zeros(1))
         self.beta = nn.Parameter(0.000000001 * torch.randn(self.ndim))
+        self.register_buffer('aggregation_support', aggregation_support)
 
     def forward(self, x):
         """Runs prediction
