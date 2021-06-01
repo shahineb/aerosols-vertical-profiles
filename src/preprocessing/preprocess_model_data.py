@@ -4,16 +4,9 @@ import xarray as xr
 standardize = lambda x: (x - x.mean()) / x.std()
 
 
-def load_dataset(file_path, trimming_altitude_idx):
+def load_dataset(file_path):
     # Load dataset
     dataset = xr.open_dataset(file_path)
-    # .isel(lat=slice(200, 350),
-    #                                           lon=slice(200, 350),
-    #                                           time=slice(0, 3))
-
-    # Trim altitude
-    dataset = dataset.isel(lev=slice(trimming_altitude_idx, len(dataset.lev)))
-
     return dataset
 
 
