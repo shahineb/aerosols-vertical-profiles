@@ -1,6 +1,6 @@
 # Reconstructing Aerosols Vertical Profiles with Aggregate Output Learning
 
-[Download](https://www.dropbox.com/s/4xtunj7h4ufxz7y/final_dataset_lat_321_lon_321_t_6_01_2007.nc?dl=0) data and place under `AODisaggregation/data/` directory.
+[Download](https://www.dropbox.com/s/4xtunj7h4ufxz7y/final_dataset_lat_321_lon_321_t_6_01_2007.nc?dl=0) data and place under `aerosols-vertical-profiles/data/` directory.
 
 ### Run Aggregate Ridge Regression
 
